@@ -230,6 +230,9 @@ const DoctorDetailScreen = () => {
           date: selectedDate,
           time: selectedTime,
           bookingId: response.data.id,
+          physiotherapistName: physiotherapist.name,
+          specialty: physiotherapist.specialty,
+          fee: physiotherapist.fee,
         },
       });
     } catch (error) {
