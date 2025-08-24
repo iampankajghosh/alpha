@@ -1,10 +1,17 @@
-import { View, ScrollView, Pressable, Image } from "react-native";
-import React from "react";
-import { useForm } from "react-hook-form";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  Image,
+  ToastAndroid,
+  Animated,
+  Easing,
+} from "react-native";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Input, Button, Text } from "~/components/ui";
+import { Button, Text } from "~/components/ui";
 import {
   Card,
   CardContent,
@@ -13,354 +20,384 @@ import {
   CardTitle,
   CardFooter,
 } from "~/components/ui/card";
+import { fetchPhysiotherapists } from "~/services/physiotherapist.service";
+import { useSelector } from "react-redux";
+import { PatientData } from "~/store/slices/types";
 
-// Mock data for featured physiotherapists
-const physiotherapists = [
-  {
-    id: "1",
-    name: "Dr. Anil Sharma",
-    specialty: "Sports Injury Specialist",
-    details:
-      "Expert in treating sports-related injuries with over 10 years of experience.",
-    rating: 4.8,
-  },
-  {
-    id: "2",
-    name: "Dr. Priya Menon",
-    specialty: "Post-Surgery Rehabilitation",
-    details: "Specializes in post-operative physiotherapy for faster recovery.",
-    rating: 4.9,
-    isTopRated: true,
-  },
-  {
-    id: "3",
-    name: "Dr. Sanjay Patel",
-    specialty: "Pediatric Care",
-    details: "Focused on physiotherapy for children with developmental needs.",
-    rating: 4.7,
-  },
-  {
-    id: "4",
-    name: "Dr. Meera Desai",
-    specialty: "Neurological Rehabilitation",
-    details: "Specializes in rehab for neurological conditions like stroke.",
-    rating: 4.6,
-  },
-];
-
-// Mock patient data (for greeting)
-const patient = {
-  name: "John Doe William",
-  role: "patient",
-};
+// Default profile image
+const defaultProfileImage = require("~/assets/images/default-profile.png");
 
 // Mock announcements
 const announcements = [
   {
     id: "1",
-    title: "Video Consultations Now Available!",
-    description:
-      "Connect with your physiotherapist from the comfort of your home.",
+    title: "Discover Video Consultations!",
+    description: "Consult with expert physiotherapists from anywhere, anytime.",
     icon: "video",
     link: "/video-consultations",
   },
   {
     id: "2",
-    title: "Stay Active: Tips for Back Pain Relief",
-    description: "Learn simple exercises to manage and prevent back pain.",
+    title: "Ease Back Pain with Simple Tips",
+    description:
+      "Explore easy exercises to relieve and prevent back discomfort.",
     icon: "info",
     link: "/tips/back-pain",
   },
 ];
 
+// Categories data
+const categories = [
+  { name: "Sports Injury", icon: "activity" },
+  { name: "Post-Surgery", icon: "scissors" },
+  { name: "Chronic Pain", icon: "alert-circle" },
+  { name: "Pediatric Care", icon: "smile" },
+  { name: "Geriatric Care", icon: "heart" },
+  { name: "Neurological Rehab", icon: "headphones" },
+];
+
 const HomeScreen = () => {
-  const { control } = useForm();
   const router = useRouter();
+  const [physiotherapists, setPhysiotherapists] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Access patient data from Redux store
+  const patient = useSelector(
+    (state: { auth: { patient: PatientData } }) => state.auth.patient
+  );
+  const isAuthenticated = useSelector(
+    (state: { auth: { isAuthenticated: boolean } }) =>
+      state.auth.isAuthenticated
+  );
+
+  // Animation for fade-in effect
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Fetch physiotherapists
+  useEffect(() => {
+    const loadPhysiotherapists = async () => {
+      setLoading(true);
+      try {
+        const response = await fetchPhysiotherapists();
+        if (!response?.success) {
+          ToastAndroid.show(
+            response?.message ??
+              "Oops! We couldn't fetch physiotherapists right now. Please try again later.",
+            ToastAndroid.LONG
+          );
+          return;
+        }
+        const validPhysios = response.data
+          .filter((physio) => !physio.is_banned)
+          .map((physio) => ({
+            ...physio,
+            name: physio.name || `Physiotherapist ${physio.id.slice(0, 4)}`,
+            specialization: physio.specialization || "General Physiotherapy",
+            qualification: physio.qualification || "Not specified",
+          }));
+        setPhysiotherapists(validPhysios.slice(0, 3));
+      } catch (error) {
+        console.error("Error:: loadPhysiotherapists: ", error);
+        ToastAndroid.show(
+          error?.response?.data?.message ??
+            "Something went wrong while fetching physiotherapists. Please try again.",
+          ToastAndroid.LONG
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPhysiotherapists();
+  }, []);
 
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+    <Animated.View
+      style={{ opacity: fadeAnim }}
+      className="flex-1 bg-gray-50 pt-12"
     >
-      <View className="min-h-screen gap-6 px-8 py-12">
-        {/* Branding Section */}
-        <View className="flex items-center mb-8">
-          <Text className="text-3xl font-bold text-primary">Phynder</Text>
-        </View>
-
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      >
         {/* User Greeting Section */}
         <View className="flex-row items-center justify-between mb-6">
-          <View className="flex-row items-center">
-            <Image
-              source={{ uri: "https://shorturl.at/DJVgc" }}
-              className="w-16 h-16 rounded-full mr-4"
-            />
-            <View>
-              <Text className="text-xl font-bold">
-                Welcome Back, {patient.name.split(" ")[0]}
-              </Text>
-              <Text className="text-sm text-muted-foreground">Patient</Text>
+          {isAuthenticated && patient ? (
+            <View className="flex-row items-center">
+              <Image
+                source={defaultProfileImage}
+                className="w-12 h-12 rounded-full mr-3 border border-gray-200"
+                accessibilityLabel="User profile image"
+              />
+              <View>
+                <Text className="text-xl font-semibold text-gray-800">
+                  Hello, {patient.name?.split(" ")[0] || "User"}!
+                </Text>
+                <Text className="text-sm text-gray-500">Welcome back</Text>
+              </View>
             </View>
-          </View>
-          <Pressable className="p-2 relative">
-            <Feather name="bell" size={24} color="#000" />
-            <View className="w-3 h-3 bg-red-500 rounded-full absolute top-1 right-2" />
+          ) : (
+            <View className="flex-row items-center">
+              <Text className="text-xl font-semibold text-gray-800">
+                Welcome to Alpha Physio
+              </Text>
+              <Link href="/login" className="ml-2">
+                <Text className="text-teal-600 font-medium">Sign In</Text>
+              </Link>
+            </View>
+          )}
+          <Pressable
+            className="p-2"
+            onPress={() => {
+              ToastAndroid.show(
+                "Notifications will be available soon. Stay tuned!",
+                ToastAndroid.SHORT
+              );
+            }}
+            accessibilityLabel="Notifications"
+          >
+            <Feather name="bell" size={24} color="#374151" />
           </Pressable>
         </View>
 
-        {/* Search Section */}
-        <View className="mb-6 flex-row w-full justify-between border border-gray-200 rounded-lg">
-          <Input
-            name="search"
-            control={control}
-            placeholder="Search Physiotherapists"
-            className="bg-white px-4 py-2 border-0"
-          />
-          <Button variant="secondary">
-            <Feather name="search" size={20} color="#6b7280" />
-          </Button>
-        </View>
-
-        {/* Banner Section with Gradient */}
+        {/* Banner Section */}
         <LinearGradient
-          colors={["#0d9488", "#115e59"]}
-          className="rounded-lg p-4 mb-6 overflow-hidden"
+          colors={["#14b8a6", "#0f766e"]}
+          className="p-5 mb-6"
+          style={{
+            borderRadius: 16,
+            overflow: "hidden",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}
         >
-          <View className="flex-row items-center mb-2">
+          <View className="flex-row items-center mb-3">
             <Feather name="heart" size={24} color="white" className="mr-2" />
-            <Text className="text-white text-lg font-bold">
-              Book Your Physiotherapist Today
+            <Text className="text-lg font-semibold text-white">
+              Your Journey to Recovery
             </Text>
           </View>
-          <Text className="text-white text-sm mb-4">
-            Find the best physiotherapists for your needs with Phynder.
+          <Text className="text-sm text-white/90 mb-4">
+            Connect with expert physiotherapists tailored to your unique needs.
           </Text>
           <Button
-            className="bg-white flex-row items-center justify-center"
+            className="bg-white rounded-lg px-4 py-2 flex-row items-center"
             onPress={() => router.push("/all-doctors")}
           >
-            <Feather
-              name="arrow-right"
-              size={20}
-              color="#0d9488"
-              className="mr-2"
-            />
-            <Text className="text-teal-500">Browse Now</Text>
+            <Text className="text-teal-600 font-medium mr-2">
+              Explore Experts
+            </Text>
+            <Feather name="arrow-right" size={18} color="#0f766e" />
           </Button>
         </LinearGradient>
 
         {/* Quick Tips Section */}
         <View className="mb-6">
-          <View className="flex-row justify-between items-center mb-3">
-            <View className="flex-row items-center">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-semibold text-gray-800">
+              Health Tips
+            </Text>
+            <Pressable
+              onPress={() =>
+                ToastAndroid.show(
+                  "More health tips are on the way. Check back soon!",
+                  ToastAndroid.SHORT
+                )
+              }
+              className="flex-row items-center"
+            >
+              <Text className="text-teal-600 font-medium mr-1">
+                Explore More
+              </Text>
+              <Feather name="chevron-right" size={16} color="#0f766e" />
+            </Pressable>
+          </View>
+          <Card className="bg-white rounded-xl shadow-sm">
+            <CardContent className="flex-row items-center p-4">
               <Feather
                 name="activity"
                 size={20}
-                color="black"
-                className="mr-2"
+                color="#0f766e"
+                className="mr-3"
               />
-              <Text className="text-lg font-bold">Quick Tips</Text>
-            </View>
-            <Link href="/tips" className="flex-row items-center" disabled>
-              <Text className="text-teal-500 mr-1">View More Tips</Text>
-              <Feather name="arrow-right" size={16} color="#0d9488" />
-            </Link>
-          </View>
-          <View className="bg-white rounded-lg p-4 flex-row items-center border border-gray-200">
-            <Feather
-              name="activity"
-              size={20}
-              color="#0d9488"
-              className="mr-3"
-            />
-            <View className="flex-1">
-              <Text className="text-sm font-medium">
-                Daily Stretch: Improve Your Posture
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                Try a 5-minute stretch routine to enhance your posture.
-              </Text>
-            </View>
-          </View>
+              <View className="flex-1">
+                <Text className="text-sm font-medium text-gray-800">
+                  Boost Your Posture Today
+                </Text>
+                <Text className="text-xs text-gray-500">
+                  Try a quick 5-minute stretch to enhance posture and ease
+                  tension.
+                </Text>
+              </View>
+            </CardContent>
+          </Card>
         </View>
 
         {/* Categories Section */}
         <View className="mb-6">
-          <View className="flex-row justify-between items-center mb-3">
-            <View className="flex-row items-center">
-              <Feather name="list" size={20} color="black" className="mr-2" />
-              <Text className="text-lg font-bold">
-                Physiotherapy Categories
-              </Text>
-            </View>
-            <Link href="/categories" className="flex-row items-center" disabled>
-              <Text className="text-teal-500 mr-1">See All</Text>
-              <Feather name="arrow-right" size={16} color="#0d9488" />
-            </Link>
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-semibold text-gray-800">
+              Browse by Specialty
+            </Text>
+            <Pressable
+              onPress={() =>
+                ToastAndroid.show("Stay tuned!", ToastAndroid.SHORT)
+              }
+              className="flex-row items-center"
+            >
+              <Text className="text-teal-600 font-medium mr-1">View All</Text>
+              <Feather name="chevron-right" size={16} color="#0f766e" />
+            </Pressable>
           </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             className="flex-row"
           >
-            <Pressable className="bg-white rounded-lg p-4 mr-3 flex-row items-center border border-gray-200">
-              <Feather
-                name="activity"
-                size={20}
-                color="#0d9488"
-                className="mr-3"
-              />
-              <Text className="text-sm font-medium">Sports Injury</Text>
-            </Pressable>
-            <Pressable className="bg-white rounded-lg p-4 mr-3 flex-row items-center border border-gray-200">
-              <Feather
-                name="scissors"
-                size={20}
-                color="#0d9488"
-                className="mr-3"
-              />
-              <Text className="text-sm font-medium">Post-Surgery</Text>
-            </Pressable>
-            <Pressable className="bg-white rounded-lg p-4 mr-3 flex-row items-center border border-gray-200">
-              <Feather
-                name="alert-circle"
-                size={20}
-                color="#0d9488"
-                className="mr-3"
-              />
-              <Text className="text-sm font-medium">Chronic Pain</Text>
-            </Pressable>
-            <Pressable className="bg-white rounded-lg p-4 mr-3 flex-row items-center border border-gray-200">
-              <Feather name="baby" size={20} color="#0d9488" className="mr-3" />
-              <Text className="text-sm font-medium">Pediatric Care</Text>
-            </Pressable>
-            <Pressable className="bg-white rounded-lg p-4 mr-3 flex-row items-center border border-gray-200">
-              <Feather
-                name="users"
-                size={20}
-                color="#0d9488"
-                className="mr-3"
-              />
-              <Text className="text-sm font-medium">Geriatric Care</Text>
-            </Pressable>
-            <Pressable className="bg-white rounded-lg p-4 mr-3 flex-row items-center border border-gray-200">
-              <Feather
-                name="activity"
-                size={20}
-                color="#0d9488"
-                className="mr-3"
-              />
-              <Text className="text-sm font-medium">Neurological Rehab</Text>
-            </Pressable>
+            {categories.map((category, index) => (
+              <Pressable
+                key={index}
+                className="bg-white rounded-xl p-4 mr-3 shadow-sm border border-gray-200"
+                onPress={() =>
+                  ToastAndroid.show(
+                    `Coming soon: ${category.name} resources and experts!`,
+                    ToastAndroid.SHORT
+                  )
+                }
+              >
+                <Feather
+                  name={category.icon}
+                  size={20}
+                  color="#0f766e"
+                  className="mb-2"
+                />
+                <Text className="text-sm font-medium text-gray-800">
+                  {category.name}
+                </Text>
+              </Pressable>
+            ))}
           </ScrollView>
         </View>
 
         {/* Announcements Section */}
         <View className="mb-6">
-          <View className="flex-row items-center mb-3">
-            <Feather name="bell" size={20} color="black" className="mr-2" />
-            <Text className="text-lg font-bold">Announcements</Text>
-          </View>
+          <Text className="text-lg font-semibold text-gray-800 mb-4">
+            What's New
+          </Text>
           {announcements.map((announcement) => (
-            <LinearGradient
+            <Card
               key={announcement.id}
-              colors={["#dbeafe", "#bfdbfe"]}
-              className="rounded-lg p-4 mb-2 flex-row items-center border border-gray-200"
+              className="bg-white rounded-xl mb-3 shadow-sm"
             >
-              <Feather
-                name={announcement.icon}
-                size={20}
-                color="#0d9488"
-                className="mr-3"
-              />
-              <View className="flex-1">
-                <Text className="text-sm font-medium">
-                  {announcement.title}
-                </Text>
-                <Text className="text-xs text-muted-foreground">
-                  {announcement.description}
-                </Text>
-              </View>
-              <Link
-                href={announcement.link}
-                className="flex-row items-center"
-                disabled
-              >
-                <Text className="text-teal-500 mr-1">Learn More</Text>
-                <Feather name="arrow-right" size={16} color="#0d9488" />
-              </Link>
-            </LinearGradient>
+              <CardContent className="flex-row items-center p-4">
+                <Feather
+                  name={announcement.icon}
+                  size={20}
+                  color="#0f766e"
+                  className="mr-3"
+                />
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-gray-800">
+                    {announcement.title}
+                  </Text>
+                  <Text className="text-xs text-gray-500">
+                    {announcement.description}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() =>
+                    ToastAndroid.show(
+                      "Feature coming soon — you'll be able to explore details here!",
+                      ToastAndroid.SHORT
+                    )
+                  }
+                  className="flex-row items-center"
+                >
+                  <Text className="text-teal-600 font-medium mr-1">
+                    Learn More
+                  </Text>
+                  <Feather name="chevron-right" size={16} color="#0f766e" />
+                </Pressable>
+              </CardContent>
+            </Card>
           ))}
         </View>
 
         {/* Featured Physiotherapists Section */}
         <View>
-          <View className="flex-row items-center mb-3">
-            <Feather name="user" size={20} color="black" className="mr-2" />
-            <Text className="text-lg font-bold">
-              Your Featured Physiotherapists
-            </Text>
-          </View>
-          {physiotherapists.map((physio) => (
-            <Card key={physio.id} className="mb-4">
-              <CardHeader className="flex-row items-center">
-                <Image
-                  source={{ uri: "https://shorturl.at/DJVgc" }}
-                  className="w-14 h-14 rounded-full mr-4"
-                />
-                <View className="flex-1">
-                  <View className="flex-row items-center">
-                    <CardTitle>{physio.name}</CardTitle>
-                    {physio.isTopRated && (
-                      <View className="ml-2 flex-row items-center bg-yellow-100 rounded-full px-2 py-1">
-                        <Feather
-                          name="award"
-                          size={14}
-                          color="#f59e0b"
-                          className="mr-1"
-                        />
-                        <Text className="text-xs text-yellow-700">
-                          Top Rated
-                        </Text>
-                      </View>
-                    )}
+          <Text className="text-lg font-semibold text-gray-800 mb-4">
+            Top Physiotherapists
+          </Text>
+          {loading ? (
+            <View className="flex-1 items-center justify-center py-8">
+              <Text className="text-center text-gray-500">
+                Fetching top physiotherapists for you...
+              </Text>
+            </View>
+          ) : physiotherapists.length === 0 ? (
+            <View className="flex-1 items-center justify-center py-8">
+              <Text className="text-center text-gray-500">
+                No physiotherapists available at the moment.{" "}
+                <Link href="/all-doctors">
+                  <Text className="text-teal-600">Browse all experts</Text>
+                </Link>
+                .
+              </Text>
+            </View>
+          ) : (
+            physiotherapists.map((physio) => (
+              <Card
+                key={physio.id}
+                className="bg-white rounded-xl mb-4 shadow-sm"
+              >
+                <CardHeader className="flex-row items-center">
+                  <Image
+                    source={defaultProfileImage}
+                    className="w-12 h-12 rounded-full mr-3 border border-gray-200"
+                    accessibilityLabel="Physiotherapist profile image"
+                  />
+                  <View className="flex-1">
+                    <CardTitle className="text-base text-gray-800">
+                      {physio.name}
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-500">
+                      {physio.specialization}
+                    </CardDescription>
                   </View>
-                  <CardDescription>{physio.specialty}</CardDescription>
-                </View>
-              </CardHeader>
-              <CardContent>
-                <Text className="text-sm text-muted-foreground">
-                  {physio.details}
-                </Text>
-              </CardContent>
-              <CardFooter className="justify-between">
-                <View className="flex-row items-center">
-                  <Feather
-                    name="star"
-                    size={16}
-                    color="#f59e0b"
-                    className="mr-1"
-                  />
-                  <Text className="text-sm">{physio.rating}</Text>
-                </View>
-                <Button
-                  className="bg-teal-500 flex-row items-center justify-center"
-                  onPress={() => router.push(`/doctor/${physio.id}`)}
-                >
-                  <Feather
-                    name="calendar"
-                    size={20}
-                    color="white"
-                    className="mr-2"
-                  />
-                  <Text className="text-white">Book Now</Text>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardFooter className="p-4">
+                  <Button
+                    className="bg-teal-600 rounded-lg px-4 py-2 flex-row items-center w-full justify-center"
+                    onPress={() => router.push(`/doctor/${physio.id}`)}
+                  >
+                    <Feather
+                      name="calendar"
+                      size={18}
+                      color="white"
+                      className="mr-2"
+                    />
+                    <Text className="text-white font-medium">
+                      Schedule a Session
+                    </Text>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))
+          )}
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </Animated.View>
   );
 };
 
