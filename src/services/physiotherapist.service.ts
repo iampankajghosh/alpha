@@ -8,3 +8,21 @@ export const fetchPhysiotherapists = async () => {
     throw error;
   }
 };
+
+export const fetchPhysiotherapistById = async (physioId) => {
+  try {
+    const response = await api.get(`/user/physiotherapist?id=${physioId}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const bookAppointment = async (payload) => {
+  try {
+    const response = await api.post("/booking/soft", payload);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
