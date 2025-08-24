@@ -3,7 +3,8 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Button, Text } from "~/components/ui";
+import { Button } from "./button";
+import { Text } from "./text";
 import React, { useEffect, useRef } from "react";
 
 // Define icon names and labels for all patient routes in the desired order

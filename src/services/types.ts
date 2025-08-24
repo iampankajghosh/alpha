@@ -7,3 +7,7 @@ export type PatientRegisterFormData = {
   identifier: string;
   password: string;
 };
+
+export type PatientNameUpdateData = {
+  name: string;
+};

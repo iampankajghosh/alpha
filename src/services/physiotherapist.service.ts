@@ -26,3 +26,5 @@ export const bookAppointment = async (payload) => {
     throw error;
   }
 };
+
+

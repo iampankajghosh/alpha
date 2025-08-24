@@ -56,13 +56,3 @@ export const logoutPatient = async () => {
   const response = await api.get("/auth/logout");
   return response.data;
 };
-
-/**
- * Fetches the patient data by the specified patient ID.
- * @param {string} patientId - The unique identifier for the patient.
- * @returns {Promise<any>} The response data from the API containing the patient's data.
- */
-export const fetchCurrentUser = async () => {
-  const response = await api.get("/user/current");
-  return response.data;
-};

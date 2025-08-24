@@ -20,6 +20,10 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
     },
 
+    updatePatient: (state, action) => {
+      state.patient = { ...state.patient, ...action.payload };
+    },
+
     /**
      * Logs the patient out by resetting authentication data
      */
@@ -31,4 +35,4 @@ const authSlice = createSlice({
 });
 
 export default authSlice.reducer;
-export const { login, logout } = authSlice.actions;
+export const { login, updatePatient, logout } = authSlice.actions;

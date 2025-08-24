@@ -2,7 +2,7 @@ import { ToastAndroid } from "react-native";
 
 import Storage from "../utils/Storage";
 import { PatientData } from "../store/slices/types";
-import { fetchCurrentUser } from "~/services/auth.service";
+import { fetchCurrentUser } from "~/services/user.service";
 
 /**
  * Checks for a stored patient authentication session and validates it.
@@ -26,7 +26,7 @@ const checkStoredAuthSession = async () => {
       return { patient: null };
     }
 
-    return { patient: { ...patient, ...response?.user } };
+    return { patient: { ...patient, ...response?.data } };
   } catch (error) {
     console.log("Error:: checkStoredAuthSession: ", error);
     return { patient: null };

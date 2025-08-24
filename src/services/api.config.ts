@@ -15,7 +15,7 @@ export const api = axios.create({
 });
 
 /**
- * Request Interceptor: Attach Bearer token from stored user session.
+ * Request Interceptor: Attach Bearer token and log requests in development mode.
  */
 api.interceptors.request.use(async (config) => {
   const patient = (await Storage.get("patient")) as {
@@ -26,44 +26,25 @@ api.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${patient?.token}`;
   }
 
+  // Log request details in development mode
+  if (__DEV__) {
+    console.log("[API REQUEST]", {
+      url: config.url,
+      method: config.method,
+      data: config.data,
+      headers: config.headers,
+    });
+  }
+
   return config;
 });
 
 /**
- * Response Interceptor: Handle 401 and 403 Invalid token responses by logging out the user.
- */
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if ([401, 403].includes(error?.response?.status)) {
-      await Storage.remove("patient");
-      store.dispatch(logout());
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-/**
- * Request Logger: Log request details in development mode.
- */
-api.interceptors.request.use((request) => {
-  if (__DEV__) {
-    console.log("[API REQUEST]", {
-      url: request.url,
-      method: request.method,
-      data: request.data,
-      headers: request.headers,
-    });
-  }
-  return request;
-});
-
-/**
- * Response Interceptor: Log responses in development mode.
+ * Response Interceptor: Handle 401/403 responses and log responses in development mode.
  */
 api.interceptors.response.use(
   (response) => {
+    // Log response details in development mode
     if (__DEV__) {
       console.log("[API RESPONSE]", {
         url: response.config.url,
@@ -73,11 +54,14 @@ api.interceptors.response.use(
     }
     return response;
   },
+  async (error) => {
+    // Handle authentication errors
+    if ([401, 403].includes(error?.response?.status)) {
+      await Storage.remove("patient");
+      store.dispatch(logout());
+    }
 
-  /**
-   * Error Handler: Logs API errors for debugging.
-   */
-  (error) => {
+    // Log error details in development mode
     if (__DEV__) {
       console.log("[API ERROR]", {
         url: error?.config?.url,

@@ -8,7 +8,7 @@ import {
   Easing,
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter, Link } from "expo-router";
+import { useRouter, Link, useFocusEffect } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,15 +18,16 @@ import { logoutPatient } from "~/services/auth.service";
 import { fetchCurrentUser } from "~/services/user.service";
 import { fetchTransactions } from "~/services/transaction.service";
 import Storage from "~/utils/Storage";
-import { logout } from "~/store/slices/auth.slice";
+import { login, logout } from "~/store/slices/auth.slice";
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
 
 const ProfileScreen = () => {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector((state: { auth: any }) => state.auth);
-  const [user, setUser] = useState(null);
+  const { isAuthenticated, patient } = useSelector(
+    (state: { auth: any }) => state.auth
+  );
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -42,74 +43,91 @@ const ProfileScreen = () => {
     }).start();
   }, []);
 
-  // Fetch user and transactions
-  useEffect(() => {
-    const loadData = async () => {
-      if (!isAuthenticated) {
-        ToastAndroid.show(
-          "Please sign in to view your profile.",
-          ToastAndroid.LONG
-        );
-        router.push("/signin");
-        return;
-      }
+  // Load data function
+  const loadData = async () => {
+    if (!isAuthenticated || !patient) {
+      ToastAndroid.show(
+        "Please sign in to view your profile.",
+        ToastAndroid.LONG
+      );
+      router.push("/signin");
+      return;
+    }
 
-      setFetchLoading(true);
-      try {
-        // Fetch user data
+    setFetchLoading(true);
+    try {
+      // If patient data is missing profile fields, fetch it
+      if (!patient.name || !patient.email) {
+        console.log(
+          "Patient data missing profile fields, fetching user data..."
+        );
         const userResponse = await fetchCurrentUser();
-        if (!userResponse?.success) {
-          ToastAndroid.show(
-            userResponse?.message ??
-              "Failed to load user data. Please try again.",
-            ToastAndroid.LONG
+        if (userResponse?.success && userResponse?.data) {
+          const updatedPatient = { ...patient, ...userResponse.data };
+          dispatch(login(updatedPatient));
+          console.log(
+            "Updated patient data with profile info:",
+            updatedPatient
           );
-          router.push("/signin");
-          return;
         }
-        setUser(userResponse.data);
+      }
 
-        // Fetch transactions
-        const transactionResponse = await fetchTransactions();
-        if (!transactionResponse?.success) {
-          ToastAndroid.show(
-            transactionResponse?.message ??
-              "Failed to load transactions. Please try again.",
-            ToastAndroid.LONG
-          );
-          setTransactions([]);
-        } else if (
-          transactionResponse.count === 0 ||
-          !transactionResponse.data
-        ) {
-          setTransactions([]);
-        } else {
-          setTransactions(
-            transactionResponse.data.map((tx) => ({
-              id: tx.id,
-              description: tx.description,
-              amount: tx.amount,
-              date: new Date(tx.created_at).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              }),
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("Error:: loadData: ", error);
+      // Fetch transactions
+      const transactionResponse = await fetchTransactions();
+      if (!transactionResponse?.success) {
         ToastAndroid.show(
-          "Unable to load profile data. Please try again later.",
+          transactionResponse?.message ??
+            "Failed to load transactions. Please try again.",
           ToastAndroid.LONG
         );
-        router.push("/signin");
-      } finally {
-        setFetchLoading(false);
+        setTransactions([]);
+      } else if (transactionResponse.count === 0 || !transactionResponse.data) {
+        setTransactions([]);
+      } else {
+        setTransactions(
+          transactionResponse.data.map((tx) => ({
+            id: tx.id,
+            description: tx.description,
+            amount: tx.amount,
+            date: new Date(tx.created_at).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+          }))
+        );
       }
-    };
+    } catch (error) {
+      console.error("Error:: loadData: ", error);
+      ToastAndroid.show(
+        "Unable to load profile data. Please try again later.",
+        ToastAndroid.LONG
+      );
+      router.push("/signin");
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  // Fetch transactions on mount
+  useEffect(() => {
     loadData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, patient]);
+
+  // Debug: Log patient data changes
+  useEffect(() => {
+    console.log("Patient data changed:", patient);
+  }, [patient]);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isAuthenticated && patient) {
+        console.log("Profile screen focused, patient data:", patient);
+        loadData();
+      }
+    }, [isAuthenticated, patient])
+  );
 
   const handleLogout = async () => {
     setLoading(true);
@@ -136,7 +154,7 @@ const ProfileScreen = () => {
     }
   };
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
         <Text className="text-center text-gray-500">
@@ -146,6 +164,14 @@ const ProfileScreen = () => {
           </Link>
           .
         </Text>
+      </View>
+    );
+  }
+
+  if (fetchLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <Text className="text-center text-gray-500">Loading profile...</Text>
       </View>
     );
   }
@@ -166,7 +192,7 @@ const ProfileScreen = () => {
             <Feather name="arrow-left" size={24} color="#374151" />
           </Pressable>
           <Text className="text-xl font-semibold text-gray-800">
-            Hello, {user.name?.split(" ")[0] || "User"}!
+            Hello, {patient?.name?.split(" ")[0] || "User"}!
           </Text>
           <Pressable
             onPress={() =>
@@ -198,8 +224,8 @@ const ProfileScreen = () => {
           <View className="flex-row items-center">
             <Image
               source={
-                user.profile_picture
-                  ? { uri: user.profile_picture }
+                patient?.profile_picture
+                  ? { uri: patient.profile_picture }
                   : defaultProfileImage
               }
               className="w-16 h-16 rounded-full mr-4 border border-gray-200"
@@ -207,7 +233,7 @@ const ProfileScreen = () => {
             />
             <View>
               <Text className="text-lg font-semibold text-white">
-                {user.name || "Unnamed User"}
+                {patient?.name || "Unnamed User"}
               </Text>
               <Text className="text-sm text-white/90">Patient</Text>
             </View>
@@ -230,7 +256,7 @@ const ProfileScreen = () => {
                 className="mr-2"
               />
               <Text className="text-2xl font-bold text-gray-800">
-                ₹{(user.wallet || 0).toFixed(2)}
+                ₹{(patient?.wallet || 0).toFixed(2)}
               </Text>
             </View>
             <Button
@@ -320,25 +346,31 @@ const ProfileScreen = () => {
             <View className="mb-3">
               <Text className="text-sm text-gray-500">Name</Text>
               <Text className="text-base font-medium text-gray-800">
-                {user.name || "Unnamed User"}
+                {patient?.name || "Unnamed User"}
               </Text>
             </View>
             <View className="mb-3">
               <Text className="text-sm text-gray-500">Email</Text>
               <Text className="text-base font-medium text-gray-800">
-                {user.email || "Not provided"}
+                {patient?.email || "Not provided"}
               </Text>
             </View>
             <View className="mb-3">
               <Text className="text-sm text-gray-500">Phone</Text>
               <Text className="text-base font-medium text-gray-800">
-                {user.phone || "Not provided"}
+                {patient?.phone || "Not provided"}
               </Text>
             </View>
             <View className="mb-6">
               <Text className="text-sm text-gray-500">Account Created</Text>
               <Text className="text-base font-medium text-gray-800">
-                {user.account_created || "Not available"}
+                {patient?.created_at
+                  ? new Date(patient.created_at).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })
+                  : "Not available"}
               </Text>
             </View>
             <Button
