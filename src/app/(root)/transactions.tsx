@@ -1,140 +1,341 @@
-import { View, ScrollView, Pressable } from "react-native";
-import React from "react";
-import { useRouter } from "expo-router";
+import { View, ScrollView, Pressable, ToastAndroid, Animated, Easing } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSelector } from "react-redux";
 import { Feather } from "@expo/vector-icons";
-import { Text } from "~/components/ui";
+import { LinearGradient } from "expo-linear-gradient";
+import { Button, Text } from "~/components/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
+import { fetchTransactionList } from "~/services/user.service";
+import { TransactionData } from "~/services/types";
 
-// Mock transaction data
-const transactions = [
-  {
-    id: "1",
-    type: "Top Up",
-    amount: 500.0,
-    date: "May 8, 2025",
-    description: "Wallet Top Up via UPI",
-  },
-  {
-    id: "2",
-    type: "Payment",
-    amount: -400.0,
-    date: "May 7, 2025",
-    description: "Appointment with Dr. Anil Sharma",
-  },
-  {
-    id: "3",
-    type: "Top Up",
-    amount: 1000.0,
-    date: "May 5, 2025",
-    description: "Wallet Top Up via Credit Card",
-  },
-  {
-    id: "4",
-    type: "Payment",
-    amount: -350.0,
-    date: "May 3, 2025",
-    description: "Appointment with Dr. Sanjay Patel",
-  },
-  {
-    id: "5",
-    type: "Top Up",
-    amount: 200.0,
-    date: "May 1, 2025",
-    description: "Wallet Top Up via Net Banking",
-  },
-];
+// Helper function to format date and time
+const formatDateTime = (timestamp: string) => {
+  const date = new Date(timestamp);
+  const now = new Date();
+  
+  // Check if it's today
+  const isToday = date.toDateString() === now.toDateString();
+  
+  // Format date
+  const dateStr = isToday 
+    ? "Today" 
+    : date.toLocaleDateString("en-IN", { 
+        day: "2-digit", 
+        month: "2-digit", 
+        year: "numeric" 
+      });
+  
+  // Format time
+  const timeStr = date.toLocaleTimeString("en-IN", { 
+    hour: "2-digit", 
+    minute: "2-digit",
+    hour12: true 
+  });
+  
+  return { date: dateStr, time: timeStr };
+};
+
+// Helper function to get transaction icon and color
+const getTransactionInfo = (type: string, paymentStatus: string) => {
+  switch (type) {
+    case "wallet_topup":
+      return {
+        icon: "plus-circle",
+        color: "#22c55e",
+        label: "Wallet Top-up"
+      };
+    case "booking_payment":
+      return {
+        icon: "calendar",
+        color: "#3b82f6",
+        label: "Booking Payment"
+      };
+    case "refund":
+      return {
+        icon: "rotate-ccw",
+        color: "#f59e0b",
+        label: "Refund"
+      };
+    default:
+      return {
+        icon: "dollar-sign",
+        color: "#6b7280",
+        label: "Transaction"
+      };
+  }
+};
 
 const TransactionsScreen = () => {
   const router = useRouter();
-  const { patient } = useSelector((state) => state.auth); // Mocked patient data
+  const { isAuthenticated } = useSelector((state: { auth: any }) => state.auth);
+  const [transactions, setTransactions] = useState<TransactionData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Fade-in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Load transactions data
+  const loadTransactions = async () => {
+    if (!isAuthenticated) {
+      ToastAndroid.show("Please sign in to view transactions.", ToastAndroid.LONG);
+      router.push("/signin");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchTransactionList();
+      
+      if (!response?.success) {
+        setError(response?.message || "Failed to load transactions");
+        ToastAndroid.show(
+          response?.message || "Failed to load transactions. Please try again.",
+          ToastAndroid.LONG
+        );
+        return;
+      }
+      
+      setTransactions(response.data || []);
+    } catch (error) {
+      console.error("Error loading transactions:", error);
+      setError("Failed to load transactions");
+      ToastAndroid.show(
+        "Unable to load transactions. Please try again later.",
+        ToastAndroid.LONG
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    loadTransactions();
+  }, [isAuthenticated]);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isAuthenticated) {
+        loadTransactions();
+      }
+    }, [isAuthenticated])
+  );
+
+  if (!isAuthenticated) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <Text className="text-center text-gray-500">
+          Please sign in to view your transactions.{" "}
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+    <Animated.View
+      style={{ opacity: fadeAnim, flex: 1, backgroundColor: "#f9fafb" }}
+      className="mt-12"
     >
-      <View className="min-h-screen gap-6 px-8 py-12">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      >
         {/* Header Section */}
-        <View className="flex-row items-center justify-between mb-8">
-          <Pressable onPress={() => router.push("/wallet")} className="p-2">
-            <Feather name="arrow-left" size={24} color="#000" />
+        <View className="flex-row items-center justify-between mb-6">
+          <Pressable onPress={() => router.back()} className="p-2">
+            <Feather name="arrow-left" size={24} color="#374151" />
           </Pressable>
-          <Text className="text-3xl font-bold text-primary">Alpha</Text>
-          <View className="w-10" /> {/* Spacer for alignment */}
+          <Text className="text-xl font-semibold text-gray-800">
+            Transaction History
+          </Text>
+          <Pressable 
+            onPress={loadTransactions} 
+            className="p-2"
+            disabled={loading}
+          >
+            <Feather 
+              name="refresh-cw" 
+              size={24} 
+              color={loading ? "#9ca3af" : "#374151"} 
+            />
+          </Pressable>
         </View>
 
-        {/* Title Section */}
-        <View className="flex-row items-center mb-3">
-          <Feather
-            name="credit-card"
-            size={20}
-            color="black"
-            className="mr-2"
-          />
-          <Text className="text-lg font-bold">Transaction History</Text>
-        </View>
-
-        {/* Transaction List Section */}
-        {transactions.length > 0 ? (
-          <View>
-            {transactions.map((transaction) => (
-              <View
-                key={transaction.id}
-                className="bg-white rounded-lg p-4 border border-gray-200 mb-4"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <View className="flex-row items-center">
-                    <Feather
-                      name={
-                        transaction.type === "Top Up"
-                          ? "credit-card"
-                          : "calendar"
-                      }
-                      size={20}
-                      color={
-                        transaction.type === "Top Up" ? "#10b981" : "#ef4444"
-                      }
-                      className="mr-2"
-                    />
-                    <Text className="text-base font-medium">
-                      {transaction.type}
-                    </Text>
-                  </View>
-                  <Text
-                    className={`text-base font-bold ${
-                      transaction.type === "Top Up"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }`}
-                  >
-                    {transaction.amount > 0 ? "+" : ""}₹
-                    {Math.abs(transaction.amount).toFixed(2)}
-                  </Text>
-                </View>
-                <Text className="text-sm text-muted-foreground">
-                  {transaction.description}
-                </Text>
-                <Text className="text-xs text-gray-500 mt-1">
-                  {transaction.date}
-                </Text>
-              </View>
-            ))}
+        {/* Summary Banner */}
+        <LinearGradient
+          colors={["#14b8a6", "#0f766e"]}
+          className="p-5 mb-6 rounded-xl"
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+            borderRadius: 16,
+          }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className="text-lg font-semibold text-white">
+                Total Transactions
+              </Text>
+              <Text className="text-sm text-white/90">
+                {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <View className="items-end">
+              <Text className="text-2xl font-bold text-white">
+                ₹{transactions.reduce((sum, tx) => sum + tx.amount, 0).toLocaleString()}
+              </Text>
+              <Text className="text-sm text-white/90">Total Amount</Text>
+            </View>
           </View>
-        ) : (
+        </LinearGradient>
+
+        {/* Loading State */}
+        {loading && (
+          <View className="flex-1 items-center justify-center py-10">
+            <Text className="text-center text-gray-500">Loading transactions...</Text>
+          </View>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
           <View className="flex-1 items-center justify-center py-10">
             <Feather
-              name="credit-card"
+              name="alert-circle"
+              size={40}
+              color="#ef4444"
+              className="mb-4"
+            />
+            <Text className="text-lg font-medium text-red-500 mb-4">
+              {error}
+            </Text>
+            <Button
+              className="bg-teal-600 rounded-lg px-4 py-3"
+              onPress={loadTransactions}
+            >
+              <Text className="text-white font-semibold">Retry</Text>
+            </Button>
+          </View>
+        )}
+
+        {/* Transactions List */}
+        {!loading && !error && transactions.length > 0 ? (
+          <View>
+            {transactions.map((transaction) => {
+              const { date, time } = formatDateTime(transaction.timestamp);
+              const transactionInfo = getTransactionInfo(transaction.type_of_transaction, transaction.payment_status);
+              
+              return (
+                <Card key={transaction.transaction_id} className="bg-white rounded-xl mb-4 shadow-sm">
+                  <CardContent className="p-4">
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center">
+                        <View 
+                          className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                          style={{ backgroundColor: `${transactionInfo.color}20` }}
+                        >
+                          <Feather
+                            name={transactionInfo.icon as any}
+                            size={20}
+                            color={transactionInfo.color}
+                          />
+                        </View>
+                        <View>
+                          <Text className="text-base font-semibold text-gray-800">
+                            {transactionInfo.label}
+                          </Text>
+                          <Text className="text-sm text-gray-500">
+                            #{transaction.transaction_id.slice(0, 8)}
+                          </Text>
+                        </View>
+                      </View>
+                      <View className="items-end">
+                        <Text className="text-lg font-bold text-gray-800">
+                          ₹{transaction.amount.toLocaleString()}
+                        </Text>
+                        <View
+                          className={`rounded-full px-2 py-1 mt-1 ${
+                            transaction.payment_status === "success"
+                              ? "bg-green-100"
+                              : transaction.payment_status === "failed"
+                              ? "bg-red-100"
+                              : "bg-yellow-100"
+                          }`}
+                        >
+                          <Text
+                            className={`text-xs capitalize ${
+                              transaction.payment_status === "success"
+                                ? "text-green-600"
+                                : transaction.payment_status === "failed"
+                                ? "text-red-600"
+                                : "text-yellow-600"
+                            }`}
+                          >
+                            {transaction.payment_status}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center">
+                        <Feather
+                          name="calendar"
+                          size={16}
+                          color="#6b7280"
+                          className="mr-2"
+                        />
+                        <Text className="text-sm text-gray-600">{date}</Text>
+                      </View>
+                      <View className="flex-row items-center">
+                        <Feather
+                          name="clock"
+                          size={16}
+                          color="#6b7280"
+                          className="mr-2"
+                        />
+                        <Text className="text-sm text-gray-600">{time}</Text>
+                      </View>
+                    </View>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </View>
+        ) : !loading && !error ? (
+          <View className="flex-1 items-center justify-center py-10">
+            <Feather
+              name="file-text"
               size={40}
               color="#6b7280"
               className="mb-4"
             />
             <Text className="text-lg font-medium text-gray-500">
-              No transactions yet
+              No transactions found
+            </Text>
+            <Text className="text-sm text-gray-400 mt-2">
+              Your transaction history will appear here
             </Text>
           </View>
-        )}
-      </View>
-    </ScrollView>
+        ) : null}
+      </ScrollView>
+    </Animated.View>
   );
 };
 

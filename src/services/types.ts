@@ -30,3 +30,33 @@ export type BookingListResponse = {
   count: number;
   data: BookingData[];
 };
+
+export type WalletTopUpData = {
+  amount: number;
+};
+
+export type WalletTopUpResponse = {
+  statusCode: number;
+  success: boolean;
+  message: string;
+  data: {
+    wallet_balance: number;
+  };
+};
+
+export type TransactionData = {
+  transaction_id: string;
+  booking_id: string | null;
+  type_of_transaction: string;
+  payment_status: string;
+  amount: number;
+  timestamp: string;
+};
+
+export type TransactionListResponse = {
+  statusCode: number;
+  success: boolean;
+  message: string;
+  count: number;
+  data: TransactionData[];
+};

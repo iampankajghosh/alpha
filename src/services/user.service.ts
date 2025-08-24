@@ -1,5 +1,5 @@
 import { api } from "./api.config";
-import { PatientNameUpdateData, BookingListResponse } from "./types";
+import { PatientNameUpdateData, BookingListResponse, WalletTopUpData, WalletTopUpResponse, TransactionListResponse } from "./types";
 
 export const fetchCurrentUser = async () => {
   try {
@@ -54,6 +54,33 @@ export const updatePatientNameHelper = async (name: string) => {
 export const fetchBookingList = async (): Promise<BookingListResponse> => {
   try {
     const response = await api.get("/booking/list");
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Top up the wallet with the specified amount
+ * @param {WalletTopUpData} data - The top-up amount
+ * @returns {Promise<WalletTopUpResponse>} The top-up response
+ */
+export const topUpWallet = async (data: WalletTopUpData): Promise<WalletTopUpResponse> => {
+  try {
+    const response = await api.post("/wallet/topup", data);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Fetches the transaction list for the current user
+ * @returns {Promise<TransactionListResponse>} The transaction list response
+ */
+export const fetchTransactionList = async (): Promise<TransactionListResponse> => {
+  try {
+    const response = await api.get("/transaction/currentuser");
     return response.data;
   } catch (error) {
     throw error;

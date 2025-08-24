@@ -15,12 +15,65 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Button, Text } from "~/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
 import { logoutPatient } from "~/services/auth.service";
-import { fetchCurrentUser } from "~/services/user.service";
-import { fetchTransactions } from "~/services/transaction.service";
+import {
+  fetchCurrentUser,
+  fetchTransactionList,
+} from "~/services/user.service";
+import { TransactionData } from "~/services/types";
 import Storage from "~/utils/Storage";
 import { login, logout } from "~/store/slices/auth.slice";
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
+
+// Helper function to format date and time
+const formatDateTime = (timestamp: string) => {
+  const date = new Date(timestamp);
+  const now = new Date();
+
+  // Check if it's today
+  const isToday = date.toDateString() === now.toDateString();
+
+  // Format date
+  const dateStr = isToday
+    ? "Today"
+    : date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+
+  return dateStr;
+};
+
+// Helper function to get transaction icon and color
+const getTransactionInfo = (type: string) => {
+  switch (type) {
+    case "wallet_topup":
+      return {
+        icon: "plus-circle",
+        color: "#22c55e",
+        label: "Wallet Top-up",
+      };
+    case "booking_payment":
+      return {
+        icon: "calendar",
+        color: "#3b82f6",
+        label: "Booking Payment",
+      };
+    case "refund":
+      return {
+        icon: "rotate-ccw",
+        color: "#f59e0b",
+        label: "Refund",
+      };
+    default:
+      return {
+        icon: "dollar-sign",
+        color: "#6b7280",
+        label: "Transaction",
+      };
+  }
+};
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -73,7 +126,7 @@ const ProfileScreen = () => {
       }
 
       // Fetch transactions
-      const transactionResponse = await fetchTransactions();
+      const transactionResponse = await fetchTransactionList();
       if (!transactionResponse?.success) {
         ToastAndroid.show(
           transactionResponse?.message ??
@@ -84,18 +137,7 @@ const ProfileScreen = () => {
       } else if (transactionResponse.count === 0 || !transactionResponse.data) {
         setTransactions([]);
       } else {
-        setTransactions(
-          transactionResponse.data.map((tx) => ({
-            id: tx.id,
-            description: tx.description,
-            amount: tx.amount,
-            date: new Date(tx.created_at).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }),
-          }))
-        );
+        setTransactions(transactionResponse.data);
       }
     } catch (error) {
       console.error("Error:: loadData: ", error);
@@ -278,9 +320,7 @@ const ProfileScreen = () => {
                 Recent Transactions
               </CardTitle>
               <Pressable
-                onPress={() =>
-                  ToastAndroid.show("Coming soon!", ToastAndroid.SHORT)
-                }
+                onPress={() => router.push("/transactions")}
                 className="flex-row items-center"
               >
                 <Text className="text-teal-600 text-sm font-medium mr-1">
@@ -300,37 +340,66 @@ const ProfileScreen = () => {
                 No recent transactions.
               </Text>
             ) : (
-              transactions.map((transaction) => (
-                <View
-                  key={transaction.id}
-                  className="flex-row justify-between items-center mb-3"
-                >
-                  <View className="flex-row items-center">
-                    <Feather
-                      name={transaction.amount < 0 ? "heart" : "plus-circle"}
-                      size={20}
-                      color={transaction.amount < 0 ? "#ef4444" : "#22c55e"}
-                      className="mr-3"
-                    />
-                    <View>
-                      <Text className="text-sm font-medium text-gray-800">
-                        {transaction.description}
+              transactions.slice(0, 3).map((transaction) => {
+                const date = formatDateTime(transaction.timestamp);
+                const transactionInfo = getTransactionInfo(
+                  transaction.type_of_transaction
+                );
+
+                return (
+                  <View
+                    key={transaction.transaction_id}
+                    className="flex-row justify-between items-center mb-3"
+                  >
+                    <View className="flex-row items-center">
+                      <View
+                        className="w-8 h-8 rounded-full items-center justify-center mr-3"
+                        style={{
+                          backgroundColor: `${transactionInfo.color}20`,
+                        }}
+                      >
+                        <Feather
+                          name={transactionInfo.icon as any}
+                          size={16}
+                          color={transactionInfo.color}
+                        />
+                      </View>
+                      <View>
+                        <Text className="text-sm font-medium text-gray-800">
+                          {transactionInfo.label}
+                        </Text>
+                        <Text className="text-xs text-gray-500">{date}</Text>
+                      </View>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-sm font-bold text-gray-800">
+                        ₹{transaction.amount.toLocaleString()}
                       </Text>
-                      <Text className="text-xs text-gray-500">
-                        {transaction.date}
-                      </Text>
+                      <View
+                        className={`rounded-full px-2 py-1 mt-1 ${
+                          transaction.payment_status === "success"
+                            ? "bg-green-100"
+                            : transaction.payment_status === "failed"
+                            ? "bg-red-100"
+                            : "bg-yellow-100"
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs capitalize ${
+                            transaction.payment_status === "success"
+                              ? "text-green-600"
+                              : transaction.payment_status === "failed"
+                              ? "text-red-600"
+                              : "text-yellow-600"
+                          }`}
+                        >
+                          {transaction.payment_status}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  <Text
-                    className={`text-sm font-bold ${
-                      transaction.amount < 0 ? "text-red-500" : "text-green-500"
-                    }`}
-                  >
-                    {transaction.amount < 0 ? "-" : "+"}₹
-                    {Math.abs(transaction.amount).toFixed(2)}
-                  </Text>
-                </View>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
