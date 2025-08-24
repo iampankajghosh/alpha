@@ -80,6 +80,8 @@ const AllDoctorsScreen = () => {
             name: physio.name || `Physiotherapist ${physio.id.slice(0, 4)}`,
             specialization: physio.specialization || "General Physiotherapy",
             qualification: physio.qualification || "Not specified",
+            rating: physio.rating || 4.5, // Default rating if not provided
+            isTopRated: physio.experience > 5, // Example logic for top-rated
           }));
         setPhysiotherapists(validPhysios);
       } catch (error) {
@@ -116,7 +118,7 @@ const AllDoctorsScreen = () => {
     return true;
   });
 
-  const toggleFilter = (filterKey) => {
+  const toggleFilter = (filterKey: string) => {
     setFilters((prev) => ({
       ...prev,
       [filterKey]: !prev[filterKey],
@@ -155,188 +157,217 @@ const AllDoctorsScreen = () => {
           </Pressable>
         </View>
 
-        {/* User Greeting (if authenticated) */}
-        {isAuthenticated && patient && (
-          <LinearGradient
-            colors={["#14b8a6", "#0f766e"]}
-            className="p-5 mb-6"
-            style={{ borderRadius: 8, elevation: 4 }}
-          >
-            <View className="flex-row items-center mb-3">
-              <Feather name="heart" size={24} color="white" className="mr-2" />
-              <Text className="text-lg font-semibold text-white">
-                Hello, {patient.name?.split(" ")[0] || "User"}!
-              </Text>
-            </View>
-            <Text className="text-sm text-white/90">
-              Find the perfect physiotherapist for your needs.
+        {/* User Greeting Banner */}
+        <LinearGradient
+          colors={["#14b8a6", "#0f766e"]}
+          className="p-5 mb-6"
+          style={{
+            borderRadius: 16,
+            overflow: "hidden",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}
+        >
+          <View className="flex-row items-center mb-3">
+            <Feather name="heart" size={24} color="white" className="mr-2" />
+            <Text className="text-lg font-semibold text-white">
+              {isAuthenticated && patient
+                ? `Hello, ${patient.name?.split(" ")[0] || "User"}!`
+                : "Explore Our Experts"}
             </Text>
-          </LinearGradient>
-        )}
+          </View>
+          <Text className="text-sm text-white/90 mb-4">
+            Find the perfect physiotherapist tailored to your unique needs.
+          </Text>
+          <Button
+            className="bg-white rounded-lg px-4 py-2 flex-row items-center"
+            onPress={() => {
+              ToastAndroid.show("Start your search below!", ToastAndroid.SHORT);
+            }}
+          >
+            <Text className="text-teal-600 font-medium mr-2">
+              Find Your Expert
+            </Text>
+            <Feather name="search" size={18} color="#0f766e" />
+          </Button>
+        </LinearGradient>
 
         {/* Search and Filter Section */}
-        <View className="mb-6">
-          <View className="flex-row items-center mb-4">
-            <View className="flex-1 mr-3">
-              <Input
-                name="search"
-                control={control}
-                placeholder="Search Physiotherapists"
-                icon={
-                  <Feather
-                    name="search"
-                    size={20}
-                    color="#6b7280"
-                    className="mr-2"
-                  />
-                }
-                className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm"
-              />
-            </View>
-            <Button
-              className="bg-teal-600 rounded-lg px-4 py-2 flex-row items-center"
-              onPress={() => {
-                ToastAndroid.show(
-                  "Advanced filters coming soon!",
-                  ToastAndroid.SHORT
-                );
-              }}
-            >
-              <Feather name="filter" size={18} color="white" className="mr-2" />
-              <Text className="text-white font-medium">Filter</Text>
-            </Button>
-          </View>
-
-          {/* Filter Chips */}
-          <View className="flex-row justify-start gap-2">
-            <Pressable
-              onPress={() => toggleFilter("topRated")}
-              className={`flex-row items-center border border-gray-200 rounded-full px-3 py-1 ${
-                filters.topRated ? "bg-teal-100" : "bg-white"
-              } shadow-sm`}
-            >
-              <Feather
-                name="award"
-                size={16}
-                color="#0f766e"
-                className="mr-1"
-              />
-              <Text className="text-sm text-gray-700">Top Rated</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => toggleFilter("nearby")}
-              className={`flex-row items-center border border-gray-200 rounded-full px-3 py-1 ${
-                filters.nearby ? "bg-teal-100" : "bg-white"
-              } shadow-sm`}
-            >
-              <Feather
-                name="map-pin"
-                size={16}
-                color="#0f766e"
-                className="mr-1"
-              />
-              <Text className="text-sm text-gray-700">Nearby</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => toggleFilter("availableNow")}
-              className={`flex-row items-center border border-gray-200 rounded-full px-3 py-1 ${
-                filters.availableNow ? "bg-teal-100" : "bg-white"
-              } shadow-sm`}
-            >
-              <Feather
-                name="clock"
-                size={16}
-                color="#0f766e"
-                className="mr-1"
-              />
-              <Text className="text-sm text-gray-700">Available Now</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Physiotherapists List */}
-        {loading ? (
-          <View className="flex-1 items-center justify-center py-8">
-            <Text className="text-center text-gray-500">
-              Fetching physiotherapists for you...
-            </Text>
-          </View>
-        ) : filteredPhysiotherapists.length === 0 ? (
-          <View className="flex-1 items-center justify-center py-8">
-            <Text className="text-center text-gray-500">
-              No physiotherapists match your filters. Try adjusting your search
-              or filters.
-            </Text>
-          </View>
-        ) : (
-          filteredPhysiotherapists.map((physio) => (
-            <Card
-              key={physio.id}
-              className="bg-white rounded-xl mb-4 shadow-sm border border-gray-200"
-            >
-              <CardHeader className="flex-row items-center">
-                <Image
-                  source={defaultProfileImage}
-                  className="w-12 h-12 rounded-full mr-3 border border-gray-200"
-                  accessibilityLabel="Physiotherapist profile image"
+        <Card className="bg-white rounded-xl shadow-sm mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg text-gray-800">
+              Search & Filter
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <View className="flex-row items-center mb-4">
+              <View className="flex-1 mr-3">
+                <Input
+                  name="search"
+                  control={control}
+                  placeholder="Search"
+                  icon={
+                    <Feather
+                      name="search"
+                      size={20}
+                      color="#6b7280"
+                      className="mr-2"
+                    />
+                  }
+                  className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm"
                 />
-                <View className="flex-1">
-                  <View className="flex-row items-center">
-                    <CardTitle className="text-base text-gray-800">
-                      {physio.name}
-                    </CardTitle>
-                    {physio.isTopRated && (
-                      <View className="ml-2 flex-row items-center bg-yellow-100 rounded-full px-2 py-1">
-                        <Feather
-                          name="award"
-                          size={14}
-                          color="#f59e0b"
-                          className="mr-1"
-                        />
-                        <Text className="text-xs text-yellow-700">
-                          Top Rated
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <CardDescription className="text-sm text-gray-500">
-                    {physio.specialization}
-                  </CardDescription>
-                </View>
-              </CardHeader>
-              <CardContent>
-                <Text className="text-sm text-gray-600">
-                  {physio.qualification}
-                </Text>
-              </CardContent>
-              <CardFooter className="justify-between p-4">
-                <View className="flex-row items-center">
-                  <Feather
-                    name="star"
-                    size={16}
-                    color="#f59e0b"
-                    className="mr-1"
-                  />
-                  <Text className="text-sm text-gray-700">{physio.rating}</Text>
-                </View>
-                <Button
-                  className="bg-teal-600 rounded-lg px-4 py-2 flex-row items-center"
-                  onPress={() => router.push(`/doctor/${physio.id}`)}
+              </View>
+              <Button
+                className="bg-teal-600 rounded-lg px-4 py-2 flex-row items-center"
+                onPress={() => {
+                  ToastAndroid.show(
+                    "Advanced filters coming soon!",
+                    ToastAndroid.SHORT
+                  );
+                }}
+              >
+                <Feather
+                  name="filter"
+                  size={18}
+                  color="white"
+                  className="mr-2"
+                />
+                <Text className="text-white font-medium">Filter</Text>
+              </Button>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="flex-row"
+            >
+              {[
+                { key: "topRated", label: "Top Rated", icon: "award" },
+                { key: "nearby", label: "Nearby", icon: "map-pin" },
+                { key: "availableNow", label: "Available Now", icon: "clock" },
+              ].map((filter) => (
+                <Pressable
+                  key={filter.key}
+                  onPress={() => toggleFilter(filter.key)}
+                  className={`flex-row items-center bg-white rounded-xl p-3 mr-3 shadow-sm border ${
+                    filters[filter.key] ? "border-teal-500" : "border-gray-200"
+                  }`}
                 >
                   <Feather
-                    name="calendar"
-                    size={18}
-                    color="white"
-                    className="mr-2"
+                    name={filter.icon}
+                    size={16}
+                    color="#0f766e"
+                    className="mr-1"
                   />
-                  <Text className="text-white font-medium">
-                    Schedule a Session
+                  <Text
+                    className={`text-sm font-medium ${
+                      filters[filter.key] ? "text-teal-600" : "text-gray-800"
+                    }`}
+                  >
+                    {filter.label}
                   </Text>
-                </Button>
-              </CardFooter>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </CardContent>
+        </Card>
+
+        {/* Physiotherapists List */}
+        <View>
+          <Text className="text-lg font-semibold text-gray-800 mb-4">
+            Our Experts
+          </Text>
+          {loading ? (
+            <Card className="bg-white rounded-xl shadow-sm">
+              <CardContent className="py-8">
+                <Text className="text-center text-gray-500">
+                  Fetching physiotherapists for you...
+                </Text>
+              </CardContent>
             </Card>
-          ))
-        )}
+          ) : filteredPhysiotherapists.length === 0 ? (
+            <Card className="bg-white rounded-xl shadow-sm">
+              <CardContent className="py-8">
+                <Text className="text-center text-gray-500">
+                  No physiotherapists match your filters. Try adjusting your
+                  search or filters.
+                </Text>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredPhysiotherapists.map((physio) => (
+              <Card
+                key={physio.id}
+                className="bg-white rounded-xl mb-4 shadow-sm"
+              >
+                <CardHeader className="flex-row items-center">
+                  <Image
+                    source={defaultProfileImage}
+                    className="w-12 h-12 rounded-full mr-3 border border-gray-200"
+                    accessibilityLabel="Physiotherapist profile image"
+                  />
+                  <View className="flex-1">
+                    <View className="flex-row items-center">
+                      <CardTitle className="text-base text-gray-800">
+                        {physio.name}
+                      </CardTitle>
+                      {physio.isTopRated && (
+                        <View className="ml-2 flex-row items-center bg-yellow-100 rounded-full px-2 py-1">
+                          <Feather
+                            name="award"
+                            size={14}
+                            color="#f59e0b"
+                            className="mr-1"
+                          />
+                          <Text className="text-xs text-yellow-700">
+                            Top Rated
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <CardDescription className="text-sm text-gray-500">
+                      {physio.specialization}
+                    </CardDescription>
+                  </View>
+                </CardHeader>
+                <CardContent>
+                  <Text className="text-sm text-gray-600">
+                    {physio.qualification}
+                  </Text>
+                </CardContent>
+                <CardFooter className="flex-row justify-between p-4">
+                  <View className="flex-row items-center">
+                    <Feather
+                      name="star"
+                      size={16}
+                      color="#f59e0b"
+                      className="mr-1"
+                    />
+                    <Text className="text-sm text-gray-700">
+                      {physio.rating}
+                    </Text>
+                  </View>
+                  <Button
+                    className="bg-teal-600 rounded-lg px-4 py-2 flex-row items-center"
+                    onPress={() => router.push(`/doctor/${physio.id}`)}
+                  >
+                    <Feather
+                      name="calendar"
+                      size={18}
+                      color="white"
+                      className="mr-2"
+                    />
+                    <Text className="text-white font-medium">
+                      Schedule a Session
+                    </Text>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))
+          )}
+        </View>
       </ScrollView>
     </Animated.View>
   );
