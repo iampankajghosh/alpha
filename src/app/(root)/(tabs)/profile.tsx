@@ -1,63 +1,127 @@
-import { View, ScrollView, ToastAndroid, Image } from "react-native";
-import React, { useState } from "react";
+import {
+  View,
+  ScrollView,
+  ToastAndroid,
+  Image,
+  Pressable,
+  Animated,
+  Easing,
+} from "react-native";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, Link } from "expo-router";
-import { useDispatch } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Feather } from "@expo/vector-icons";
-
+import { LinearGradient } from "expo-linear-gradient";
 import { Button, Text } from "~/components/ui";
+import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
 import { logoutPatient } from "~/services/auth.service";
+import { fetchCurrentUser } from "~/services/user.service";
+import { fetchTransactions } from "~/services/transaction.service";
 import Storage from "~/utils/Storage";
 import { logout } from "~/store/slices/auth.slice";
-import { PatientData } from "~/store/slices/types";
-
-// Mock patient data (assumed to be fetched from Redux or Storage)
-const patient: PatientData = {
-  id: "12847039-9ccb-4b82-87b3-d169b679419a",
-  name: "John Doe William",
-  email: "john.doe@example.com",
-  phone: "+911234567899",
-  password: "",
-  date_of_birth: "1990-01-01T00:00:00Z",
-  gender: "male",
-  role: "patient",
-  profile_picture: "",
-  wallet: 150.75,
-  is_banned: false,
-  banned_until: "0001-01-01T00:00:00Z",
-  is_deleted: false,
-  created_at: "2025-05-02T19:20:00.873983Z",
-  updated_at: "2025-05-08T18:39:21.074459Z",
-};
-
-// Mock transaction data with Indian date format (DD/MM/YYYY)
-const transactions = [
-  {
-    id: "1",
-    description: "Consultation with Dr. Pawan",
-    amount: -50.0,
-    date: "07/05/2025",
-  },
-  { id: "2", description: "Wallet Top-Up", amount: 100.0, date: "06/05/2025" },
-];
+// Default profile image
+const defaultProfileImage = require("~/assets/images/default-profile.png");
 
 const ProfileScreen = () => {
   const router = useRouter();
   const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: { auth: any }) => state.auth);
+  const [user, setUser] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Fade-in animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Fetch user and transactions
+  useEffect(() => {
+    const loadData = async () => {
+      if (!isAuthenticated) {
+        ToastAndroid.show(
+          "Please sign in to view your profile.",
+          ToastAndroid.LONG
+        );
+        router.push("/signin");
+        return;
+      }
+
+      setFetchLoading(true);
+      try {
+        // Fetch user data
+        const userResponse = await fetchCurrentUser();
+        if (!userResponse?.success) {
+          ToastAndroid.show(
+            userResponse?.message ??
+              "Failed to load user data. Please try again.",
+            ToastAndroid.LONG
+          );
+          router.push("/signin");
+          return;
+        }
+        setUser(userResponse.data);
+
+        // Fetch transactions
+        const transactionResponse = await fetchTransactions();
+        if (!transactionResponse?.success) {
+          ToastAndroid.show(
+            transactionResponse?.message ??
+              "Failed to load transactions. Please try again.",
+            ToastAndroid.LONG
+          );
+          setTransactions([]);
+        } else if (
+          transactionResponse.count === 0 ||
+          !transactionResponse.data
+        ) {
+          setTransactions([]);
+        } else {
+          setTransactions(
+            transactionResponse.data.map((tx) => ({
+              id: tx.id,
+              description: tx.description,
+              amount: tx.amount,
+              date: new Date(tx.created_at).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              }),
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error:: loadData: ", error);
+        ToastAndroid.show(
+          "Unable to load profile data. Please try again later.",
+          ToastAndroid.LONG
+        );
+        router.push("/signin");
+      } finally {
+        setFetchLoading(false);
+      }
+    };
+    loadData();
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     setLoading(true);
     try {
       const response = await logoutPatient();
-
-      if (!response) {
+      if (!response?.success) {
         ToastAndroid.show(
-          response?.msg ?? "Unable to log out. Please try again.",
+          response?.message ?? "Unable to log out. Please try again.",
           ToastAndroid.LONG
         );
         return;
       }
-
       await Storage.remove("patient");
       dispatch(logout());
       router.push("/signin");
@@ -72,134 +136,225 @@ const ProfileScreen = () => {
     }
   };
 
+  if (!isAuthenticated || !user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <Text className="text-center text-gray-500">
+          Please sign in to view your profile.{" "}
+          <Link href="/signin">
+            <Text className="text-teal-600">Sign In</Text>
+          </Link>
+          .
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+    <Animated.View
+      style={{ opacity: fadeAnim, flex: 1, backgroundColor: "#f9fafb" }}
+      className="mt-12"
     >
-      <View className="min-h-screen gap-6 px-8 py-12">
-        {/* Branding Section */}
-        <View className="flex items-center mb-8">
-          <Text className="text-3xl font-bold text-primary">Alpha</Text>
-        </View>
-
-        {/* User Greeting Section */}
-        <View className="flex-row items-center mb-6">
-          <Image
-            source={{ uri: "https://shorturl.at/DJVgc" }}
-            className="w-16 h-16 rounded-full mr-4"
-          />
-          <View>
-            <Text className="text-xl font-bold">{patient.name}</Text>
-            <Text className="text-sm text-muted-foreground">Patient</Text>
-          </View>
-        </View>
-
-        {/* Wallet Section */}
-        <View className="bg-teal-500 rounded-lg p-4 mb-6">
-          <View className="flex-row items-center mb-2">
-            <Feather
-              name="credit-card"
-              size={24}
-              color="white"
-              className="mr-2"
-            />
-            <Text className="text-white text-lg font-bold">
-              Your Wallet Balance
-            </Text>
-          </View>
-          <Text className="text-white text-2xl font-bold mt-1">
-            ₹{patient.wallet.toFixed(2)}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      >
+        {/* Header Section */}
+        <View className="flex-row items-center justify-between mb-6">
+          <Pressable onPress={() => router.back()} className="p-2">
+            <Feather name="arrow-left" size={24} color="#374151" />
+          </Pressable>
+          <Text className="text-xl font-semibold text-gray-800">
+            Hello, {user.name?.split(" ")[0] || "User"}!
           </Text>
-          <Button
-            className="bg-white mt-4 flex-row items-center justify-center"
-            onPress={() => router.push("/top-up")}
-            disabled={loading}
+          <Pressable
+            onPress={() =>
+              ToastAndroid.show(
+                "Notifications coming soon!",
+                ToastAndroid.SHORT
+              )
+            }
+            className="p-2"
+            accessibilityLabel="Notifications"
           >
-            <Feather name="plus" size={20} color="#0d9488" className="mr-2" />
-            <Text className="text-teal-500">Top Up</Text>
-          </Button>
+            <Feather name="bell" size={24} color="#374151" />
+          </Pressable>
         </View>
 
-        {/* Transactions Section */}
-        <View className="mb-6">
-          <View className="flex-row justify-between items-center mb-3">
-            <View className="flex-row items-center">
-              <Feather name="list" size={20} color="black" className="mr-2" />
-              <Text className="text-lg font-bold">Recent Transactions</Text>
+        {/* Profile Banner */}
+        <LinearGradient
+          colors={["#14b8a6", "#0f766e"]}
+          className="p-5 mb-6 rounded-xl"
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+            borderRadius: 16,
+          }}
+        >
+          <View className="flex-row items-center">
+            <Image
+              source={
+                user.profile_picture
+                  ? { uri: user.profile_picture }
+                  : defaultProfileImage
+              }
+              className="w-16 h-16 rounded-full mr-4 border border-gray-200"
+              accessibilityLabel="Profile picture"
+            />
+            <View>
+              <Text className="text-lg font-semibold text-white">
+                {user.name || "Unnamed User"}
+              </Text>
+              <Text className="text-sm text-white/90">Patient</Text>
             </View>
-            <Link href="/transactions" className="flex-row items-center">
-              <Text className="text-teal-500 mr-1">See All</Text>
-              <Feather name="arrow-right" size={16} color="#0d9488" />
-            </Link>
           </View>
-          {transactions.map((transaction) => (
-            <View
-              key={transaction.id}
-              className="bg-white rounded-lg p-4 mb-2 flex-row justify-between items-center border border-gray-200"
-            >
-              <View className="flex-row items-center">
-                <Feather
-                  name={transaction.amount < 0 ? "heart" : "plus-circle"}
-                  size={20}
-                  color={transaction.amount < 0 ? "#ef4444" : "#22c55e"}
-                  className="mr-3"
-                />
-                <View>
-                  <Text className="text-sm font-medium">
-                    {transaction.description}
-                  </Text>
-                  <Text className="text-xs text-muted-foreground">
-                    {transaction.date}
-                  </Text>
-                </View>
-              </View>
-              <Text
-                className={`text-sm font-bold ${
-                  transaction.amount < 0 ? "text-red-500" : "text-green-500"
-                }`}
-              >
-                {transaction.amount < 0 ? "-" : "+"}₹
-                {Math.abs(transaction.amount).toFixed(2)}
+        </LinearGradient>
+
+        {/* Wallet Card */}
+        <Card className="bg-white rounded-xl mb-6 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-gray-800">
+              Wallet Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <View className="flex-row items-center mb-4">
+              <Feather
+                name="credit-card"
+                size={20}
+                color="#0f766e"
+                className="mr-2"
+              />
+              <Text className="text-2xl font-bold text-gray-800">
+                ₹{(user.wallet || 0).toFixed(2)}
               </Text>
             </View>
-          ))}
-        </View>
+            <Button
+              className="bg-teal-600 rounded-lg px-4 py-3 flex-row items-center justify-center"
+              onPress={() => router.push("/top-up")}
+              disabled={loading}
+            >
+              <Feather name="plus" size={20} color="white" className="mr-2" />
+              <Text className="text-white font-semibold text-base">Top Up</Text>
+            </Button>
+          </CardContent>
+        </Card>
 
-        {/* Account Section */}
-        <View>
-          <View className="flex-row items-center mb-3">
-            <Feather name="user" size={20} color="black" className="mr-2" />
-            <Text className="text-lg font-bold">Your Account Details</Text>
-          </View>
-          <View className="bg-white rounded-lg p-4 border border-gray-200">
+        {/* Transactions Card */}
+        <Card className="bg-white rounded-xl mb-6 shadow-sm">
+          <CardHeader>
+            <View className="flex-row justify-between items-center">
+              <CardTitle className="text-lg text-gray-800">
+                Recent Transactions
+              </CardTitle>
+              <Pressable
+                onPress={() =>
+                  ToastAndroid.show("Coming soon!", ToastAndroid.SHORT)
+                }
+                className="flex-row items-center"
+              >
+                <Text className="text-teal-600 text-sm font-medium mr-1">
+                  See All
+                </Text>
+                <Feather name="arrow-right" size={16} color="#0f766e" />
+              </Pressable>
+            </View>
+          </CardHeader>
+          <CardContent>
+            {fetchLoading ? (
+              <Text className="text-sm text-gray-600">
+                Loading transactions...
+              </Text>
+            ) : transactions.length === 0 ? (
+              <Text className="text-sm text-gray-600">
+                No recent transactions.
+              </Text>
+            ) : (
+              transactions.map((transaction) => (
+                <View
+                  key={transaction.id}
+                  className="flex-row justify-between items-center mb-3"
+                >
+                  <View className="flex-row items-center">
+                    <Feather
+                      name={transaction.amount < 0 ? "heart" : "plus-circle"}
+                      size={20}
+                      color={transaction.amount < 0 ? "#ef4444" : "#22c55e"}
+                      className="mr-3"
+                    />
+                    <View>
+                      <Text className="text-sm font-medium text-gray-800">
+                        {transaction.description}
+                      </Text>
+                      <Text className="text-xs text-gray-500">
+                        {transaction.date}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    className={`text-sm font-bold ${
+                      transaction.amount < 0 ? "text-red-500" : "text-green-500"
+                    }`}
+                  >
+                    {transaction.amount < 0 ? "-" : "+"}₹
+                    {Math.abs(transaction.amount).toFixed(2)}
+                  </Text>
+                </View>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Account Details Card */}
+        <Card className="bg-white rounded-xl mb-6 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-gray-800">
+              Account Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <View className="mb-3">
-              <Text className="text-sm text-muted-foreground">Name</Text>
-              <Text className="text-base font-medium">{patient.name}</Text>
+              <Text className="text-sm text-gray-500">Name</Text>
+              <Text className="text-base font-medium text-gray-800">
+                {user.name || "Unnamed User"}
+              </Text>
             </View>
             <View className="mb-3">
-              <Text className="text-sm text-muted-foreground">Email</Text>
-              <Text className="text-base font-medium">{patient.email}</Text>
+              <Text className="text-sm text-gray-500">Email</Text>
+              <Text className="text-base font-medium text-gray-800">
+                {user.email || "Not provided"}
+              </Text>
+            </View>
+            <View className="mb-3">
+              <Text className="text-sm text-gray-500">Phone</Text>
+              <Text className="text-base font-medium text-gray-800">
+                {user.phone || "Not provided"}
+              </Text>
             </View>
             <View className="mb-6">
-              <Text className="text-sm text-muted-foreground">Phone</Text>
-              <Text className="text-base font-medium">{patient.phone}</Text>
+              <Text className="text-sm text-gray-500">Account Created</Text>
+              <Text className="text-base font-medium text-gray-800">
+                {user.account_created || "Not available"}
+              </Text>
             </View>
             <Button
-              className="bg-teal-500 mb-3 flex-row items-center justify-center"
+              className="bg-teal-600 rounded-lg px-4 py-3 flex-row items-center justify-center mb-4"
               onPress={() => router.push("/edit-profile")}
               disabled={loading}
             >
               <Feather name="edit" size={20} color="white" className="mr-2" />
-              <Text className="text-white">Edit Profile</Text>
+              <Text className="text-white font-semibold text-base">
+                Edit Profile
+              </Text>
             </Button>
-
-            {/* Logout Button */}
             <Button
+              className="bg-gray-200 rounded-lg px-4 py-3 flex-row items-center justify-center"
               onPress={handleLogout}
               disabled={loading}
-              variant="ghost"
-              className="flex-row items-center justify-center"
             >
               <Feather
                 name="log-out"
@@ -207,12 +362,14 @@ const ProfileScreen = () => {
                 color="#ef4444"
                 className="mr-2"
               />
-              <Text className="text-red-500 font-semibold">Log Out</Text>
+              <Text className="text-red-500 font-semibold text-base">
+                Log Out
+              </Text>
             </Button>
-          </View>
-        </View>
-      </View>
-    </ScrollView>
+          </CardContent>
+        </Card>
+      </ScrollView>
+    </Animated.View>
   );
 };
 
