@@ -1,0 +1,97 @@
+# Node.js and npm
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Expo-specific
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# React Native build outputs
+/android/app/build/
+/ios/build/
+/ios/Pods/
+/ios/*.xcodeproj/project.xcworkspace/
+/ios/*.xcodeproj/xcshareddata/
+
+# Metro bundler cache
+.metro/
+
+# Environment variables and sensitive files
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.log.*
+*.tmp
+temp/
+
+# Coverage reports
+coverage/
+
+# Miscellaneous
+*.swp
+*.swo
+*~
+
+# Android-specific
+/android/app/*.keystore
+/android/app/debug.keystore
+/android/app/release/
+*.apk
+*.aab
+*.jks
+
+# iOS-specific
+/ios/*.mobileprovision
+/ios/*.cer
+/ios/*.p12
+/ios/*.pem
+
+# TypeScript-specific
+*.tsbuildinfo
+
+# Build artifacts
+build/
+dist/
+out/
+
+# Dependency directories
+/lib/
+libs/
+
+# Local testing and debugging
+*.local
+*.orig
+
+# Expo OTA (Over-the-Air) updates
+*.ipa
+*.apk
+*.aab
+*.zip
+*.tar.gz
+
+# Other common ignores
+*.bak
+*.backup
+*.cache
+*.patch
+*.diff
