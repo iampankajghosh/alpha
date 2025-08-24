@@ -80,7 +80,7 @@ const ProfileScreen = () => {
       <View className="min-h-screen gap-6 px-8 py-12">
         {/* Branding Section */}
         <View className="flex items-center mb-8">
-          <Text className="text-3xl font-bold text-primary">Phynder</Text>
+          <Text className="text-3xl font-bold text-primary">Alpha</Text>
         </View>
 
         {/* User Greeting Section */}

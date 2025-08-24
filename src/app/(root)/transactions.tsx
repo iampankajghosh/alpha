@@ -59,7 +59,7 @@ const TransactionsScreen = () => {
           <Pressable onPress={() => router.push("/wallet")} className="p-2">
             <Feather name="arrow-left" size={24} color="#000" />
           </Pressable>
-          <Text className="text-3xl font-bold text-primary">Phynder</Text>
+          <Text className="text-3xl font-bold text-primary">Alpha</Text>
           <View className="w-10" /> {/* Spacer for alignment */}
         </View>
 

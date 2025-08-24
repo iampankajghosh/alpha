@@ -80,14 +80,14 @@ const SignUpScreen = () => {
       <View className="min-h-screen justify-center gap-6 px-8 py-12">
         {/* Branding Section */}
         <View className="flex items-center mb-8">
-          <Text className="text-3xl font-bold text-primary">Phynder</Text>
+          <Text className="text-3xl font-bold text-primary">Alpha</Text>
         </View>
 
         {/* Title & Subtitle */}
         <View className="mb-4">
           <Text className="text-2xl font-bold text-center">Sign Up</Text>
           <Text className="text-base text-muted-foreground text-center mt-1">
-            Create an account to start your journey with Phynder.
+            Create an account to start your journey with Alpha.
           </Text>
         </View>
 
