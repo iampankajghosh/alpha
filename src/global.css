@@ -24,26 +24,4 @@
     --input: 200 20% 80%; /* Light teal */
     --ring: 200 60% 45%; /* Calming blue */
   }
-
-  .dark:root {
-    --background: 200 50% 10%; /* Dark teal */
-    --foreground: 0 0% 95%; /* Light gray */
-    --card: 200 50% 15%; /* Slightly lighter teal */
-    --card-foreground: 0 0% 95%; /* Light gray */
-    --popover: 200 50% 15%; /* Slightly lighter teal */
-    --popover-foreground: 0 0% 95%; /* Light gray */
-    --primary: 200 60% 60%; /* Lighter blue */
-    --primary-foreground: 200 50% 10%; /* Dark teal */
-    --secondary: 160 40% 20%; /* Dark green */
-    --secondary-foreground: 0 0% 95%; /* Light gray */
-    --muted: 160 20% 30%; /* Dark gray-green */
-    --muted-foreground: 200 30% 70%; /* Light teal */
-    --accent: 160 20% 30%; /* Dark gray-green */
-    --accent-foreground: 0 0% 95%; /* Light gray */
-    --destructive: 0 50% 50%; /* Muted red */
-    --destructive-foreground: 0 0% 95%; /* Light gray */
-    --border: 200 20% 25%; /* Darker teal */
-    --input: 200 20% 25%; /* Darker teal */
-    --ring: 200 60% 60%; /* Lighter blue */
-  }
 }
