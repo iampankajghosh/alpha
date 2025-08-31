@@ -1,9 +1,25 @@
-import { View, ScrollView, Pressable, ToastAndroid } from "react-native";
-import React, { useState, useEffect } from "react";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  ToastAndroid,
+  Animated,
+  Easing,
+  RefreshControl,
+} from "react-native";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, Link, useFocusEffect } from "expo-router";
 import { useSelector } from "react-redux";
 import { Feather } from "@expo/vector-icons";
 import { Text, Button } from "~/components/ui";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "~/components/ui/card";
 import { fetchBookingList } from "~/services/user.service";
 import { BookingData } from "~/services/types";
 
@@ -63,11 +79,22 @@ const AppointmentsScreen = () => {
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Categorize bookings into upcoming and past
   const categorizedBookings = categorizeBookings(bookings);
   const appointments =
     categorizedBookings[activeTab as keyof typeof categorizedBookings];
+
+  // Animation for fade-in effect
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   // Load bookings data
   const loadBookings = async () => {
@@ -133,30 +160,39 @@ const AppointmentsScreen = () => {
   };
 
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+    <Animated.View
+      style={{ opacity: fadeAnim }}
+      className="flex-1 bg-gray-50 pt-12"
     >
-      <View className="min-h-screen gap-6 px-8 py-12">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadBookings} />
+        }
+      >
         {/* Header Section */}
-        <View className="flex-row items-center justify-between mb-8">
+        <View className="flex-row items-center justify-between mb-6">
           <Pressable onPress={() => router.back()} className="p-2">
-            <Feather name="arrow-left" size={24} color="#000" />
+            <Feather name="arrow-left" size={24} color="#374151" />
           </Pressable>
-          <Text className="text-3xl font-bold text-primary">Alpha</Text>
+          <Text className="text-xl font-semibold text-gray-800">Alpha</Text>
           <Pressable onPress={loadBookings} className="p-2" disabled={loading}>
             <Feather
               name="refresh-cw"
               size={24}
-              color={loading ? "#9ca3af" : "#000"}
+              color={loading ? "#9ca3af" : "#374151"}
             />
           </Pressable>
         </View>
 
         {/* Title Section */}
-        <View className="flex-row items-center mb-3">
-          <Feather name="calendar" size={20} color="black" className="mr-2" />
-          <Text className="text-lg font-bold">Your Appointments</Text>
+        <View className="flex-row items-center mb-4">
+          <Feather name="calendar" size={20} color="#0f766e" className="mr-2" />
+          <Text className="text-lg font-semibold text-gray-800">
+            Your Appointments
+          </Text>
         </View>
 
         {/* Tabs Section */}
@@ -164,12 +200,12 @@ const AppointmentsScreen = () => {
           <Pressable
             onPress={() => setActiveTab("upcoming")}
             className={`flex-1 pb-2 border-b-2 ${
-              activeTab === "upcoming" ? "border-teal-500" : "border-gray-200"
+              activeTab === "upcoming" ? "border-teal-600" : "border-gray-200"
             }`}
           >
             <Text
-              className={`text-center text-base font-medium ${
-                activeTab === "upcoming" ? "text-teal-500" : "text-gray-500"
+              className={`text-center text-lg font-semibold ${
+                activeTab === "upcoming" ? "text-teal-600" : "text-gray-500"
               }`}
             >
               Upcoming
@@ -193,8 +229,8 @@ const AppointmentsScreen = () => {
 
         {/* Loading State */}
         {loading && (
-          <View className="flex-1 items-center justify-center py-10">
-            <Text className="text-lg font-medium text-gray-500">
+          <View className="items-center justify-center py-10">
+            <Text className="text-center text-gray-500">
               Loading appointments...
             </Text>
           </View>
@@ -202,7 +238,7 @@ const AppointmentsScreen = () => {
 
         {/* Error State */}
         {error && !loading && (
-          <View className="flex-1 items-center justify-center py-10">
+          <View className="items-center justify-center py-10">
             <Feather
               name="alert-circle"
               size={40}
@@ -223,83 +259,92 @@ const AppointmentsScreen = () => {
 
         {/* Appointment List Section */}
         {!loading && !error && appointments.length > 0 ? (
-          <View>
-            {appointments.map((booking) => {
-              const { date, time } = formatDateTime(booking.date_time);
-              const isUpcoming = activeTab === "upcoming";
+          appointments.map((booking) => {
+            const { date, time } = formatDateTime(booking.date_time);
+            const isUpcoming = activeTab === "upcoming";
 
-              return (
-                <View key={booking.booking_id} className="mb-4">
-                  {/* Booking ID and Status Header */}
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-shrink w-[70%]">
-                      <Text className="text-base font-bold">
-                        Booking #{booking.booking_id.slice(0, 8)}
-                      </Text>
-                      <Text className="text-sm text-gray-600">
-                        Physiotherapist ID:{" "}
-                        {booking.physiotherapist_user_id.slice(0, 8)}
-                      </Text>
-                    </View>
-                    <View
-                      className={`rounded-full px-3 py-1 ${
-                        booking.status === "confirmed" ||
-                        booking.status === "soft"
-                          ? "bg-green-100"
+            return (
+              <Card
+                key={booking.booking_id}
+                className="bg-white rounded-xl mb-4 shadow-sm"
+              >
+                <CardHeader className="flex-row items-baseline justify-between">
+                  <View className="flex-1">
+                    <CardTitle className="text-base text-gray-800">
+                      Booking #{booking.booking_id.slice(0, 8).toUpperCase()}
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-500">
+                      Physiotherapist ID:{" "}
+                      {booking.physiotherapist_user_id
+                        .slice(0, 8)
+                        .toUpperCase()}
+                    </CardDescription>
+                  </View>
+                  <View
+                    className={`rounded-full px-3 py-1 ${
+                      booking.status === "confirmed"
+                        ? "bg-green-100"
+                        : booking.status === "soft"
+                        ? "bg-yellow-100"
+                        : booking.status === "cancelled"
+                        ? "bg-red-100"
+                        : "bg-gray-100"
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm capitalize ${
+                        booking.status === "confirmed"
+                          ? "text-green-500"
+                          : booking.status === "soft"
+                          ? "text-orange-600"
                           : booking.status === "cancelled"
-                          ? "bg-red-100"
-                          : "bg-gray-100"
+                          ? "text-red-500"
+                          : "text-gray-500"
                       }`}
                     >
-                      <Text
-                        className={`text-sm capitalize ${
-                          booking.status === "confirmed" ||
-                          booking.status === "soft"
-                            ? "text-green-500"
-                            : booking.status === "cancelled"
-                            ? "text-red-500"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {booking.status}
-                      </Text>
-                    </View>
+                      {booking.status === "soft" ? "pending" : booking.status}
+                    </Text>
                   </View>
-
-                  {/* Booking Card */}
-                  <View className="bg-white rounded-lg p-4 border border-gray-200">
-                    <View className="flex-row items-center mb-2">
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <View className="flex-row items-center gap-5">
+                    <View className="flex-row items-center mb-2 w-1/2">
                       <Feather
                         name="calendar"
                         size={20}
-                        color="#0d9488"
+                        color="#0f766e"
                         className="mr-2"
                       />
-                      <Text className="text-sm">{date}</Text>
+                      <Text className="text-sm text-gray-800">{date}</Text>
                     </View>
-                    <View className="flex-row items-center mb-2">
+                    <View className="flex-row items-center mb-2 w-1/2">
                       <Feather
                         name="clock"
                         size={20}
-                        color="#0d9488"
+                        color="#0f766e"
                         className="mr-2"
                       />
-                      <Text className="text-sm">{time}</Text>
+                      <Text className="text-sm text-gray-800">{time}</Text>
                     </View>
-                    <View className="flex-row items-center mb-2">
+                  </View>
+
+                  <View className="flex-row items-center gap-5">
+                    <View className="flex-row items-center mb-2 w-1/2">
                       <Feather
                         name="dollar-sign"
                         size={20}
-                        color="#0d9488"
+                        color="#0f766e"
                         className="mr-2"
                       />
-                      <Text className="text-sm">₹{booking.amount}</Text>
+                      <Text className="text-sm text-gray-800">
+                        ₹{booking.amount}
+                      </Text>
                     </View>
-                    <View className="flex-row items-center mb-2">
+                    <View className="flex-row items-center mb-2 w-1/2">
                       <Feather
                         name="credit-card"
                         size={20}
-                        color="#0d9488"
+                        color="#0f766e"
                         className="mr-2"
                       />
                       <Text
@@ -312,55 +357,27 @@ const AppointmentsScreen = () => {
                         {booking.payment_status}
                       </Text>
                     </View>
-                    {isUpcoming && (
-                      <View className="flex-row justify-end gap-3 mt-2">
-                        <Button
-                          className="bg-teal-500 flex-row items-center justify-center p-2"
-                          onPress={() => handleJoinCall(booking.booking_id)}
-                        >
-                          <Feather
-                            name="video"
-                            size={16}
-                            color="white"
-                            className="mr-1"
-                          />
-                          <Text className="text-white text-sm">Join Call</Text>
-                        </Button>
-                        <Button
-                          className="bg-red-100 flex-row items-center justify-center p-2"
-                          onPress={() => handleCancel(booking.booking_id)}
-                        >
-                          <Feather
-                            name="x-circle"
-                            size={16}
-                            color="#ef4444"
-                            className="mr-1"
-                          />
-                          <Text className="text-red-500 text-sm">Cancel</Text>
-                        </Button>
-                      </View>
-                    )}
                   </View>
-                </View>
-              );
-            })}
-          </View>
+                </CardContent>
+              </Card>
+            );
+          })
         ) : !loading && !error ? (
-          <View className="flex-1 items-center justify-center py-10">
+          <View className="items-center justify-center py-10">
             <Feather
               name="calendar"
               size={40}
               color="#6b7280"
               className="mb-4"
             />
-            <Text className="text-lg font-medium text-gray-500">
-              No {activeTab} appointments
+            <Text className="text-center text-gray-500">
+              No {activeTab} appointments available.
             </Text>
           </View>
         ) : null}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </Animated.View>
   );
 };
 
-export default AppointmentsScreen;
+export default React.memo(AppointmentsScreen);

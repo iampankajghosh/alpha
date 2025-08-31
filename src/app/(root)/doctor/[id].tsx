@@ -22,25 +22,27 @@ import {
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
 
-// Generate dates starting from current date (August 24, 2025) for 6 days
-const currentDateTime = new Date("2025-08-24T19:47:00+05:30"); // Current IST time
-const dates = [];
-for (let i = 0; i < 6; i++) {
-  const date = new Date(currentDateTime);
-  date.setDate(date.getDate() + i);
-  const formattedDate = date.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  dates.push({
-    formatted: formattedDate,
-    iso: date.toISOString().split("T")[0],
-  });
-}
+// Generate dates starting from current date for 6 days
+const generateDates = (currentDateTime) => {
+  const dates = [];
+  for (let i = 0; i < 6; i++) {
+    const date = new Date(currentDateTime);
+    date.setDate(date.getDate() + i);
+    const formattedDate = date.toLocaleDateString("en-US", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+    dates.push({
+      formatted: formattedDate,
+      iso: date.toISOString().split("T")[0],
+    });
+  }
+  return dates;
+};
 
-// Generate time slots from 12:00 PM to 5:00 PM
-const generateTimeSlots = (selectedDate) => {
+// Generate time slots from 12:00 PM to 5:00 PM in IST
+const generateTimeSlots = (selectedDate, currentDateTime) => {
   const timeSlots = [];
   const isToday = selectedDate === currentDateTime.toISOString().split("T")[0];
   const currentHour = currentDateTime.getHours();
@@ -54,13 +56,15 @@ const generateTimeSlots = (selectedDate) => {
       .toString()
       .padStart(2, "0")}:00 ${period}`;
     const isoHour = hour.toString().padStart(2, "0");
-    const isoTime = `${isoHour}:00:00+05:30`;
+    const isoTime = `${isoHour}:00:00+05:30`; // Explicitly IST (UTC+05:30)
 
     if (isToday) {
+      // Only include time slots that are in the future for today
       if (hour > currentHour || (hour === currentHour && currentMinute < 59)) {
         timeSlots.push({ formatted: formattedTime, iso: isoTime });
       }
     } else {
+      // Include all time slots for future dates
       timeSlots.push({ formatted: formattedTime, iso: isoTime });
     }
   }
@@ -74,15 +78,13 @@ const DoctorDetailScreen = () => {
     (state: { auth: any }) => state.auth
   );
   const [physiotherapist, setPhysiotherapist] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(dates[0].formatted);
-  const [selectedIsoDate, setSelectedIsoDate] = useState(dates[0].iso);
-  const [timeSlots, setTimeSlots] = useState(generateTimeSlots(dates[0].iso));
-  const [selectedTime, setSelectedTime] = useState(
-    timeSlots[0]?.formatted || ""
-  );
-  const [selectedIsoTime, setSelectedIsoTime] = useState(
-    timeSlots[0]?.iso || ""
-  );
+  const currentDateTime = new Date(); // Dynamic current date and time
+  const [dates, setDates] = useState(generateDates(currentDateTime));
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedIsoDate, setSelectedIsoDate] = useState("");
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedIsoTime, setSelectedIsoTime] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -97,9 +99,28 @@ const DoctorDetailScreen = () => {
     }).start();
   }, []);
 
+  // Update dates and select the first valid date with available time slots
+  useEffect(() => {
+    const newDates = generateDates(currentDateTime);
+    setDates(newDates);
+    // Find the first date with available time slots
+    for (const date of newDates) {
+      const slots = generateTimeSlots(date.iso, currentDateTime);
+      if (slots.length > 0) {
+        setSelectedDate(date.formatted);
+        setSelectedIsoDate(date.iso);
+        break;
+      } else {
+        // If no slots for the first date, select the next day
+        setSelectedDate(newDates[1]?.formatted || "");
+        setSelectedIsoDate(newDates[1]?.iso || "");
+      }
+    }
+  }, []);
+
   // Update time slots when selected date changes
   useEffect(() => {
-    const newTimeSlots = generateTimeSlots(selectedIsoDate);
+    const newTimeSlots = generateTimeSlots(selectedIsoDate, currentDateTime);
     setTimeSlots(newTimeSlots);
     if (newTimeSlots.length > 0) {
       setSelectedTime(newTimeSlots[0].formatted);
@@ -113,7 +134,6 @@ const DoctorDetailScreen = () => {
   // Fetch physiotherapist details
   useEffect(() => {
     const loadPhysiotherapist = async () => {
-      // Validate id
       if (!id || typeof id !== "string" || id.trim() === "") {
         ToastAndroid.show(
           "Invalid physiotherapist ID. Please try again.",
@@ -125,7 +145,7 @@ const DoctorDetailScreen = () => {
 
       setFetchLoading(true);
       try {
-        console.log("Fetching physiotherapist with ID:", id); // Debug log
+        console.log("Fetching physiotherapist with ID:", id);
         const response = await fetchPhysiotherapistById(id);
         if (!response?.success) {
           const errorMessage =
@@ -134,7 +154,7 @@ const DoctorDetailScreen = () => {
               : response?.message ??
                 "Oops! We couldn't fetch physiotherapist details right now. Please try again later.";
           ToastAndroid.show(errorMessage, ToastAndroid.LONG);
-          router.replace("/all-doctors"); // Redirect to browse experts
+          router.replace("/all-doctors");
           return;
         }
         const physio = response.data;
@@ -148,10 +168,10 @@ const DoctorDetailScreen = () => {
         }
         setPhysiotherapist({
           id: physio.id,
-          name: physio.name || `Physiotherapist ${physio.id.slice(0, 4)}`,
+          name: physio.name || "Physiotherapist",
           specialty: physio.specialization || "General Physiotherapy",
           details: physio.qualification || "Not specified",
-          rating: 4.5, // Default rating as API doesn't provide it
+          rating: 4.5,
           fee: physio.visiting_fee || 0,
           physiotherapist_user_id: physio.id,
           isTopRated: physio.experience >= 10,
@@ -164,7 +184,7 @@ const DoctorDetailScreen = () => {
             : error?.response?.data?.message ??
               "Something went wrong while fetching physiotherapist details. Please try again.";
         ToastAndroid.show(errorMessage, ToastAndroid.LONG);
-        router.replace("/all-doctors"); // Redirect to browse experts
+        router.replace("/all-doctors");
       } finally {
         setFetchLoading(false);
       }
@@ -192,7 +212,7 @@ const DoctorDetailScreen = () => {
 
     // Validate that the selected date and time are not in the past
     const selectedDateTime = new Date(`${selectedIsoDate}T${selectedIsoTime}`);
-    if (selectedDateTime <= currentDateTime) {
+    if (selectedDateTime <= new Date()) {
       ToastAndroid.show(
         "Cannot book an appointment in the past. Please select a future date or time.",
         ToastAndroid.LONG
@@ -202,10 +222,11 @@ const DoctorDetailScreen = () => {
 
     setLoading(true);
     try {
+      // Construct ISO 8601 date-time string in IST
       const dateTime = `${selectedIsoDate}T${selectedIsoTime}`;
       const payload = {
         physiotherapist_user_id: physiotherapist.physiotherapist_user_id,
-        date_time: dateTime,
+        date_time: dateTime, // e.g., "2025-09-01T12:00:00+05:30"
       };
 
       const response = await bookAppointment(payload);
@@ -537,7 +558,8 @@ const DoctorDetailScreen = () => {
               </ScrollView>
             ) : (
               <Text className="text-sm text-gray-600">
-                No available time slots for today.
+                No available time slots for the selected date. Please choose
+                another date.
               </Text>
             )}
           </CardContent>
