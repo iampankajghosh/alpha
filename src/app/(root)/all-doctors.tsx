@@ -77,11 +77,11 @@ const AllDoctorsScreen = () => {
           .filter((physio) => !physio.is_banned)
           .map((physio) => ({
             ...physio,
-            name: physio.name || `Physiotherapist ${physio.id.slice(0, 4)}`,
+            name: physio.name || `Physiotherapist`,
             specialization: physio.specialization || "General Physiotherapy",
             qualification: physio.qualification || "Not specified",
-            rating: physio.rating || 4.5, // Default rating if not provided
-            isTopRated: physio.experience > 5, // Example logic for top-rated
+            rating: physio.rating || 4.5,
+            isTopRated: physio.experience > 5,
           }));
         setPhysiotherapists(validPhysios);
       } catch (error) {
@@ -211,11 +211,7 @@ const AllDoctorsScreen = () => {
                     className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm pr-10"
                   />
                   <View className="absolute right-3 top-[50%] -translate-y-1/2">
-                    <Feather
-                      name="search"
-                      size={20}
-                      color="#6b7280"
-                    />
+                    <Feather name="search" size={20} color="#6b7280" />
                   </View>
                 </View>
               </View>
@@ -245,7 +241,11 @@ const AllDoctorsScreen = () => {
               {[
                 { key: "topRated", label: "Top Rated", icon: "award" as const },
                 { key: "nearby", label: "Nearby", icon: "map-pin" as const },
-                { key: "availableNow", label: "Available Now", icon: "clock" as const },
+                {
+                  key: "availableNow",
+                  label: "Available Now",
+                  icon: "clock" as const,
+                },
               ].map((filter) => (
                 <Pressable
                   key={filter.key}
