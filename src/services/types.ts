@@ -60,3 +60,16 @@ export type TransactionListResponse = {
   count: number;
   data: TransactionData[];
 };
+
+export interface BookingDecisionData {
+  booking_id: string;
+  decision: "accept" | "reject";
+  payment_type: string;
+  amount: number;
+}
+
+export interface BookingDecisionResponse {
+  success: boolean;
+  message?: string;
+  data?: any;
+}

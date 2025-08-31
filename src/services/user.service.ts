@@ -1,5 +1,13 @@
 import { api } from "./api.config";
-import { PatientNameUpdateData, BookingListResponse, WalletTopUpData, WalletTopUpResponse, TransactionListResponse } from "./types";
+import {
+  PatientNameUpdateData,
+  BookingListResponse,
+  WalletTopUpData,
+  WalletTopUpResponse,
+  TransactionListResponse,
+  BookingDecisionData,
+  BookingDecisionResponse,
+} from "./types";
 
 export const fetchCurrentUser = async () => {
   try {
@@ -31,19 +39,19 @@ export const updatePatientName = async (data: PatientNameUpdateData) => {
  */
 export const updatePatientNameHelper = async (name: string) => {
   // Validate name
-  if (!name || typeof name !== 'string') {
-    throw new Error('Name is required and must be a string');
+  if (!name || typeof name !== "string") {
+    throw new Error("Name is required and must be a string");
   }
-  
+
   const trimmedName = name.trim();
   if (trimmedName.length < 2) {
-    throw new Error('Name must be at least 2 characters long');
+    throw new Error("Name must be at least 2 characters long");
   }
-  
+
   if (trimmedName.length > 50) {
-    throw new Error('Name must be less than 50 characters');
+    throw new Error("Name must be less than 50 characters");
   }
-  
+
   return updatePatientName({ name: trimmedName });
 };
 
@@ -65,7 +73,9 @@ export const fetchBookingList = async (): Promise<BookingListResponse> => {
  * @param {WalletTopUpData} data - The top-up amount
  * @returns {Promise<WalletTopUpResponse>} The top-up response
  */
-export const topUpWallet = async (data: WalletTopUpData): Promise<WalletTopUpResponse> => {
+export const topUpWallet = async (
+  data: WalletTopUpData
+): Promise<WalletTopUpResponse> => {
   try {
     const response = await api.post("/wallet/topup", data);
     return response.data;
@@ -78,9 +88,26 @@ export const topUpWallet = async (data: WalletTopUpData): Promise<WalletTopUpRes
  * Fetches the transaction list for the current user
  * @returns {Promise<TransactionListResponse>} The transaction list response
  */
-export const fetchTransactionList = async (): Promise<TransactionListResponse> => {
+export const fetchTransactionList =
+  async (): Promise<TransactionListResponse> => {
+    try {
+      const response = await api.get("/transaction/currentuser");
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+/**
+ * Makes a booking decision (accept or reject)
+ * @param {BookingDecisionData} data - The booking decision data
+ * @returns {Promise<BookingDecisionResponse>} The booking decision response
+ */
+export const makeBookingDecision = async (
+  data: BookingDecisionData
+): Promise<BookingDecisionResponse> => {
   try {
-    const response = await api.get("/transaction/currentuser");
+    const response = await api.post("/booking/decision", data);
     return response.data;
   } catch (error) {
     throw error;

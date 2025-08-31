@@ -20,7 +20,7 @@ import {
   CardTitle,
   CardFooter,
 } from "~/components/ui/card";
-import { fetchBookingList } from "~/services/user.service";
+import { fetchBookingList, makeBookingDecision } from "~/services/user.service";
 import { BookingData } from "~/services/types";
 
 // Helper function to format date and time
@@ -159,6 +159,64 @@ const AppointmentsScreen = () => {
     ToastAndroid.show("Video call feature coming soon!", ToastAndroid.SHORT);
   };
 
+  const handleAccept = async (bookingId: string, amount: number) => {
+    try {
+      const payload = {
+        booking_id: bookingId,
+        decision: "accept" as "accept",
+        payment_type: "wallet",
+        amount: amount,
+      };
+
+      const response = await makeBookingDecision(payload);
+
+      if (response.success) {
+        ToastAndroid.show("Booking accepted successfully!", ToastAndroid.SHORT);
+        await loadBookings(); // Refresh bookings
+      } else {
+        ToastAndroid.show(
+          response?.message || "Failed to accept booking",
+          ToastAndroid.SHORT
+        );
+      }
+    } catch (error) {
+      console.error("Error accepting booking:", error);
+      ToastAndroid.show(
+        "Failed to accept booking. Please try again.",
+        ToastAndroid.SHORT
+      );
+    }
+  };
+
+  const handleReject = async (bookingId: string) => {
+    try {
+      const payload = {
+        booking_id: bookingId,
+        decision: "reject" as "reject",
+        payment_type: "wallet",
+        amount: 0,
+      };
+
+      const response = await makeBookingDecision(payload);
+
+      if (response.success) {
+        ToastAndroid.show("Booking rejected successfully!", ToastAndroid.SHORT);
+        await loadBookings(); // Refresh bookings
+      } else {
+        ToastAndroid.show(
+          response?.message || "Failed to reject booking",
+          ToastAndroid.SHORT
+        );
+      }
+    } catch (error) {
+      console.error("Error rejecting booking:", error);
+      ToastAndroid.show(
+        "Failed to reject booking. Please try again.",
+        ToastAndroid.SHORT
+      );
+    }
+  };
+
   return (
     <Animated.View
       style={{ opacity: fadeAnim }}
@@ -286,6 +344,8 @@ const AppointmentsScreen = () => {
                         ? "bg-green-100"
                         : booking.status === "soft"
                         ? "bg-yellow-100"
+                        : booking.status === "hard"
+                        ? "bg-yellow-100"
                         : booking.status === "cancelled"
                         ? "bg-red-100"
                         : "bg-gray-100"
@@ -297,12 +357,16 @@ const AppointmentsScreen = () => {
                           ? "text-green-500"
                           : booking.status === "soft"
                           ? "text-orange-600"
+                          : booking.status === "hard"
+                          ? "text-orange-600"
                           : booking.status === "cancelled"
                           ? "text-red-500"
                           : "text-gray-500"
                       }`}
                     >
-                      {booking.status === "soft" ? "pending" : booking.status}
+                      {booking.status === "soft" || booking.status === "hard"
+                        ? "pending"
+                        : booking.status}
                     </Text>
                   </View>
                 </CardHeader>
@@ -359,6 +423,28 @@ const AppointmentsScreen = () => {
                     </View>
                   </View>
                 </CardContent>
+                {booking.status === "hard" && (
+                  <CardFooter className="flex-row justify-between p-4 gap-3">
+                    <Button
+                      className="bg-green-600 rounded-lg px-4 py-2 flex-1"
+                      onPress={() =>
+                        handleAccept(booking.booking_id, booking.amount)
+                      }
+                    >
+                      <Text className="text-white font-semibold text-center">
+                        Accept
+                      </Text>
+                    </Button>
+                    <Button
+                      className="bg-red-600 rounded-lg px-4 py-2 flex-1"
+                      onPress={() => handleReject(booking.booking_id)}
+                    >
+                      <Text className="text-white font-semibold text-center">
+                        Reject
+                      </Text>
+                    </Button>
+                  </CardFooter>
+                )}
               </Card>
             );
           })
