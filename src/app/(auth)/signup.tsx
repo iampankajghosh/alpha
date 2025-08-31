@@ -3,18 +3,22 @@ import React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "expo-router";
 import { useAppDispatch, useAppSelector } from "~/store/hooks";
-
 import { Button, Input, Text } from "~/components/ui";
-import { PatientLoginFormData } from "~/services/types";
-import { login, setLoading, setError, clearError } from "~/store/slices/auth.slice";
+import {
+  PatientRegisterFormData,
+  PatientLoginFormData,
+} from "~/services/types";
 import Storage from "~/utils/Storage";
-import { authenticatePatient } from "~/services/auth.service";
+import { registerPatient, authenticatePatient } from "~/services/auth.service";
+import { login, setLoading, setError, clearError } from "~/store/slices/auth.slice";
 
 // Regular expression patterns for validation
 const IDENTIFIER_PATTERN =
   /^(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\d{10})$/;
+const PASSWORD_PATTERN =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-const SignInScreen = () => {
+const SignUpScreen = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { isLoading, error } = useAppSelector((state) => state.auth);
@@ -23,28 +27,43 @@ const SignInScreen = () => {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<PatientLoginFormData>({
+  } = useForm<PatientRegisterFormData>({
     defaultValues: {
-      email_or_phone: "",
+      identifier: "",
       password: "",
     },
   });
 
-  const handlePatientLogin = async (formData: PatientLoginFormData) => {
+  const handlePatientSignup = async (formData: PatientRegisterFormData) => {
     dispatch(setLoading(true));
     dispatch(clearError());
 
     try {
-      const response = await authenticatePatient(formData);
+      // Step 1: Register the patient
+      const registerResponse = await registerPatient(formData);
 
-      if (!response?.success) {
-        const errorMessage = response?.message ?? "Unable to login.";
+      if (!registerResponse?.success) {
+        const errorMessage = registerResponse?.message ?? "Unable to sign up.";
         dispatch(setError(errorMessage));
         ToastAndroid.show(errorMessage, ToastAndroid.LONG);
         return;
       }
 
-      if (response?.data?.role !== "patient") {
+      // Step 2: Authenticate the patient
+      const loginPayload: PatientLoginFormData = {
+        email_or_phone: formData.identifier,
+        password: formData.password,
+      };
+      const authResponse = await authenticatePatient(loginPayload);
+
+      if (!authResponse?.success) {
+        const errorMessage = authResponse?.message ?? "Unable to login after signup.";
+        dispatch(setError(errorMessage));
+        ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+        return;
+      }
+
+      if (authResponse?.data?.role !== "patient") {
         const errorMessage = "You are not authorized to access this application.";
         dispatch(setError(errorMessage));
         ToastAndroid.show(errorMessage, ToastAndroid.LONG);
@@ -52,12 +71,12 @@ const SignInScreen = () => {
       }
 
       // Store patient data and update Redux state
-      await Storage.set("patient", response?.data);
-      dispatch(login(response?.data));
+      await Storage.set("patient", authResponse?.data);
+      dispatch(login(authResponse?.data));
       router.replace("/(root)");
     } catch (error: any) {
-      console.error("Error:: handlePatientLogin: ", error);
-      const errorMessage = error?.response?.data?.message ?? "Unable to login.";
+      console.error("Error:: handlePatientSignup: ", error);
+      const errorMessage = error?.response?.data?.message ?? "Unable to sign up.";
       dispatch(setError(errorMessage));
       ToastAndroid.show(errorMessage, ToastAndroid.LONG);
     }
@@ -73,9 +92,9 @@ const SignInScreen = () => {
 
         {/* Title & Subtitle */}
         <View className="mb-4">
-          <Text className="text-2xl font-bold text-center">Sign In</Text>
+          <Text className="text-2xl font-bold text-center">Sign Up</Text>
           <Text className="text-base text-muted-foreground text-center mt-1">
-            Welcome back! Please log in with your credentials to continue.
+            Create an account to start your journey with Alpha.
           </Text>
         </View>
 
@@ -89,7 +108,7 @@ const SignInScreen = () => {
         {/* Email or Phone Input */}
         <Controller
           control={control}
-          name="email_or_phone"
+          name="identifier"
           rules={{
             required: "Email or phone is required",
             pattern: {
@@ -106,9 +125,9 @@ const SignInScreen = () => {
                 autoCapitalize="none"
                 editable={!isLoading}
               />
-              {errors.email_or_phone && (
+              {errors.identifier && (
                 <Text className="text-red-500">
-                  {errors.email_or_phone.message}
+                  {errors.identifier.message}
                 </Text>
               )}
             </>
@@ -121,6 +140,11 @@ const SignInScreen = () => {
           name="password"
           rules={{
             required: "Password is required",
+            pattern: {
+              value: PASSWORD_PATTERN,
+              message:
+                "Password must be at least 8 characters, include uppercase, lowercase, number, and special character",
+            },
           }}
           render={({ field: { onChange, value } }) => (
             <>
@@ -139,18 +163,22 @@ const SignInScreen = () => {
         />
 
         {/* Submit Button */}
-        <Button onPress={handleSubmit(handlePatientLogin)} disabled={isLoading}>
-          {isLoading ? <Text>Signing In...</Text> : <Text>Sign In</Text>}
+        <Button onPress={handleSubmit(handlePatientSignup)} disabled={isLoading}>
+          {isLoading ? (
+            <Text>Creating Account...</Text>
+          ) : (
+            <Text>Create Account</Text>
+          )}
         </Button>
 
         {/* Footer Navigation */}
         <Text className="text-center text-sm mt-4">
-          Don't have an account?{" "}
+          Already have an account?{" "}
           <Text
             className="text-primary font-medium"
-            onPress={() => router.push("/(auth)/signup")}
+            onPress={() => router.push("/(auth)/signin")}
           >
-            Sign Up
+            Sign In
           </Text>
         </Text>
       </View>
@@ -158,4 +186,4 @@ const SignInScreen = () => {
   );
 };
 
-export default React.memo(SignInScreen);
+export default React.memo(SignUpScreen);

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, Link, useFocusEffect } from "expo-router";
-import { useSelector, useDispatch } from "react-redux";
+import { useAppSelector, useAppDispatch } from "~/store/hooks";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Button, Text } from "~/components/ui";
@@ -22,6 +22,7 @@ import {
 import { TransactionData } from "~/services/types";
 import Storage from "~/utils/Storage";
 import { login, logout } from "~/store/slices/auth.slice";
+import { handleLogout } from "~/utils/auth";
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
 
@@ -77,10 +78,8 @@ const getTransactionInfo = (type: string) => {
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const dispatch = useDispatch();
-  const { isAuthenticated, patient } = useSelector(
-    (state: { auth: any }) => state.auth
-  );
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, patient } = useAppSelector((state) => state.auth);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -171,20 +170,10 @@ const ProfileScreen = () => {
     }, [isAuthenticated, patient])
   );
 
-  const handleLogout = async () => {
+  const handleLogoutPress = async () => {
     setLoading(true);
     try {
-      const response = await logoutPatient();
-      if (!response?.success) {
-        ToastAndroid.show(
-          response?.message ?? "Unable to log out. Please try again.",
-          ToastAndroid.LONG
-        );
-        return;
-      }
-      await Storage.remove("patient");
-      dispatch(logout());
-      router.push("/signin");
+      await handleLogout(true, true);
     } catch (error) {
       console.error("Error:: Logout: ", error);
       ToastAndroid.show(
@@ -454,7 +443,7 @@ const ProfileScreen = () => {
             </Button>
             <Button
               className="bg-gray-200 rounded-lg px-4 py-3 flex-row items-center justify-center"
-              onPress={handleLogout}
+                              onPress={handleLogoutPress}
               disabled={loading}
             >
               <Feather

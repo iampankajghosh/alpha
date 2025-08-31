@@ -1,7 +1,7 @@
 import { View, ScrollView, Pressable } from "react-native";
 import React from "react";
 import { useRouter, Link } from "expo-router";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "~/store/hooks";
 import { Feather } from "@expo/vector-icons";
 import { Text } from "~/components/ui";
 
@@ -43,7 +43,7 @@ const chats = [
 
 const AllChatsScreen = () => {
   const router = useRouter();
-  const { patient } = useSelector((state) => state.auth); // Mocked patient data
+  const { patient } = useAppSelector((state) => state.auth); // Mocked patient data
 
   return (
     <ScrollView

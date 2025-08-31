@@ -1,18 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Redirect } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "~/store/hooks";
 import checkStoredAuthSession from "~/helpers/checkStoredAuthSession";
-import { login, logout } from "~/store/slices/auth.slice";
+import { login, logout, setInitialized } from "~/store/slices/auth.slice";
 import Storage from "~/utils/Storage";
 
 // Prevent the splash screen from auto-hiding on app load
 SplashScreen.preventAutoHideAsync();
 
 const App = () => {
-  const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const [isReady, setIsReady] = useState(false);
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     const prepareApp = async () => {
@@ -30,7 +29,7 @@ const App = () => {
         console.error("Auth check failed:", e);
         dispatch(logout());
       } finally {
-        setIsReady(true);
+        dispatch(setInitialized());
         await SplashScreen.hideAsync(); // Hide splash screen only when ready
       }
     };
@@ -38,9 +37,10 @@ const App = () => {
     prepareApp();
   }, [dispatch]);
 
-  if (!isReady) return null;
+  // Show loading until auth state is initialized
+  if (!isInitialized) return null;
 
-  return <Redirect href={isAuthenticated ? "/(root)" : "/(auth)"} />;
+  return <Redirect href={isAuthenticated ? "/(root)" : "/(auth)/signin"} />;
 };
 
 export default App;

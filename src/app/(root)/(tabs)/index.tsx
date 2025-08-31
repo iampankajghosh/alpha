@@ -149,9 +149,6 @@ const HomeScreen = () => {
               <Text className="text-xl font-semibold text-gray-800">
                 Welcome to Alpha Physio
               </Text>
-              <Link href="/login" className="ml-2">
-                <Text className="text-teal-600 font-medium">Sign In</Text>
-              </Link>
             </View>
           )}
           <Pressable
