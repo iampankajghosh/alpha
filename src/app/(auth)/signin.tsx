@@ -6,11 +6,14 @@ import { useAppDispatch, useAppSelector } from "~/store/hooks";
 
 import { Button, Input, Text } from "~/components/ui";
 import { PatientLoginFormData } from "~/services/types";
-import { login, setLoading, setError, clearError } from "~/store/slices/auth.slice";
+import {
+  login,
+  setLoading,
+  setError,
+  clearError,
+} from "~/store/slices/auth.slice";
 import Storage from "~/utils/Storage";
 import { authenticatePatient } from "~/services/auth.service";
-import { showNetworkStatus, testApiConnectivity } from "~/utils/network";
-import config from "~/config/config";
 
 // Regular expression patterns for validation
 const IDENTIFIER_PATTERN =
@@ -47,7 +50,8 @@ const SignInScreen = () => {
       }
 
       if (response?.data?.role !== "patient") {
-        const errorMessage = "You are not authorized to access this application.";
+        const errorMessage =
+          "You are not authorized to access this application.";
         dispatch(setError(errorMessage));
         ToastAndroid.show(errorMessage, ToastAndroid.LONG);
         return;
@@ -63,17 +67,6 @@ const SignInScreen = () => {
       dispatch(setError(errorMessage));
       ToastAndroid.show(errorMessage, ToastAndroid.LONG);
     }
-  };
-
-  const handleNetworkTest = async () => {
-    await showNetworkStatus();
-    
-    // Test API connectivity
-    const isApiReachable = await testApiConnectivity(config.backendUrl);
-    ToastAndroid.show(
-      `API Connectivity: ${isApiReachable ? 'Success' : 'Failed'}`,
-      ToastAndroid.SHORT
-    );
   };
 
   return (
@@ -98,15 +91,6 @@ const SignInScreen = () => {
             <Text className="text-red-600 text-center">{error}</Text>
           </View>
         )}
-
-        {/* Network Test Button (for debugging) */}
-        <Button 
-          onPress={handleNetworkTest} 
-          variant="outline"
-          className="mb-4"
-        >
-          <Text>Test Network Connection</Text>
-        </Button>
 
         {/* Email or Phone Input */}
         <Controller
