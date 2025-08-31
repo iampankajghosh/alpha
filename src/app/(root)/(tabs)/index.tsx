@@ -33,7 +33,7 @@ const announcements = [
     id: "1",
     title: "Discover Video Consultations!",
     description: "Consult with expert physiotherapists from anywhere, anytime.",
-    icon: "video",
+    icon: "video" as const,
     link: "/video-consultations",
   },
   {
@@ -41,19 +41,19 @@ const announcements = [
     title: "Ease Back Pain with Simple Tips",
     description:
       "Explore easy exercises to relieve and prevent back discomfort.",
-    icon: "info",
+    icon: "info" as const,
     link: "/tips/back-pain",
   },
 ];
 
 // Categories data
 const categories = [
-  { name: "Sports Injury", icon: "activity" },
-  { name: "Post-Surgery", icon: "scissors" },
-  { name: "Chronic Pain", icon: "alert-circle" },
-  { name: "Pediatric Care", icon: "smile" },
-  { name: "Geriatric Care", icon: "heart" },
-  { name: "Neurological Rehab", icon: "headphones" },
+  { name: "Sports Injury", icon: "activity" as const },
+  { name: "Post-Surgery", icon: "scissors" as const },
+  { name: "Chronic Pain", icon: "alert-circle" as const },
+  { name: "Pediatric Care", icon: "smile" as const },
+  { name: "Geriatric Care", icon: "heart" as const },
+  { name: "Neurological Rehab", icon: "headphones" as const },
 ];
 
 const HomeScreen = () => {

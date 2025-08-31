@@ -205,20 +205,19 @@ const AllDoctorsScreen = () => {
           <CardContent>
             <View className="flex-row items-center mb-4">
               <View className="flex-1 mr-3">
-                <Input
-                  name="search"
-                  control={control}
-                  placeholder="Search"
-                  icon={
+                <View className="relative flex-1">
+                  <Input
+                    placeholder="Search"
+                    className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm pr-10"
+                  />
+                  <View className="absolute right-3 top-[50%] -translate-y-1/2">
                     <Feather
                       name="search"
                       size={20}
                       color="#6b7280"
-                      className="mr-2"
                     />
-                  }
-                  className="bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm"
-                />
+                  </View>
+                </View>
               </View>
               <Button
                 className="bg-teal-600 rounded-lg px-4 py-2 flex-row items-center"
@@ -244,9 +243,9 @@ const AllDoctorsScreen = () => {
               className="flex-row"
             >
               {[
-                { key: "topRated", label: "Top Rated", icon: "award" },
-                { key: "nearby", label: "Nearby", icon: "map-pin" },
-                { key: "availableNow", label: "Available Now", icon: "clock" },
+                { key: "topRated", label: "Top Rated", icon: "award" as const },
+                { key: "nearby", label: "Nearby", icon: "map-pin" as const },
+                { key: "availableNow", label: "Available Now", icon: "clock" as const },
               ].map((filter) => (
                 <Pressable
                   key={filter.key}

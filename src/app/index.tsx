@@ -5,17 +5,28 @@ import { useAppDispatch, useAppSelector } from "~/store/hooks";
 import checkStoredAuthSession from "~/helpers/checkStoredAuthSession";
 import { login, logout, setInitialized } from "~/store/slices/auth.slice";
 import Storage from "~/utils/Storage";
+import { checkInternetConnectivity } from "~/utils/network";
 
 // Prevent the splash screen from auto-hiding on app load
 SplashScreen.preventAutoHideAsync();
 
 const App = () => {
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isInitialized } = useAppSelector(
+    (state) => state.auth
+  );
 
   useEffect(() => {
     const prepareApp = async () => {
       try {
+        // Check network connectivity first
+        const isConnected = await checkInternetConnectivity();
+        console.log("[APP] Network connectivity:", isConnected);
+
+        if (!isConnected) {
+          console.warn("[APP] No internet connectivity detected");
+        }
+
         const res = await checkStoredAuthSession();
 
         if (!res?.patient) {

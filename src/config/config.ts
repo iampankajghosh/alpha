@@ -1,5 +1,7 @@
 const config = {
-  backendUrl: String(process.env.EXPO_PUBLIC_API_URL),
+  backendUrl:
+    process.env.EXPO_PUBLIC_API_URL ||
+    "https://project-alpha-backend.onrender.com",
 };
 
 export default config;
