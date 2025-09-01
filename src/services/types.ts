@@ -21,6 +21,7 @@ export type BookingData = {
   date_time: string;
   amount: number;
   payment_status: string;
+  visiting_charge?: number; // Visiting charge amount from partner list
 };
 
 export type BookingListResponse = {
@@ -64,7 +65,7 @@ export type TransactionListResponse = {
 export interface BookingDecisionData {
   booking_id: string;
   decision: "accept" | "reject";
-  payment_type: string;
+  payment_type: "full" | "visiting" | "wallet";
   amount: number;
 }
 

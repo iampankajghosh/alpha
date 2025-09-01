@@ -20,6 +20,7 @@ import {
   CardTitle,
   CardFooter,
 } from "~/components/ui/card";
+import { PatientPaymentModal } from "~/components/ui/PatientPaymentModal";
 import { fetchBookingList, makeBookingDecision } from "~/services/user.service";
 import { BookingData } from "~/services/types";
 
@@ -80,6 +81,10 @@ const AppointmentsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(
+    null
+  );
 
   // Categorize bookings into upcoming and past
   const categorizedBookings = categorizeBookings(bookings);
@@ -159,12 +164,16 @@ const AppointmentsScreen = () => {
     ToastAndroid.show("Video call feature coming soon!", ToastAndroid.SHORT);
   };
 
-  const handleAccept = async (bookingId: string, amount: number) => {
+  const handleAccept = async (
+    bookingId: string,
+    paymentType: "full" | "visiting",
+    amount: number
+  ) => {
     try {
       const payload = {
         booking_id: bookingId,
         decision: "accept" as "accept",
-        payment_type: "wallet",
+        payment_type: paymentType,
         amount: amount,
       };
 
@@ -193,7 +202,7 @@ const AppointmentsScreen = () => {
       const payload = {
         booking_id: bookingId,
         decision: "reject" as "reject",
-        payment_type: "wallet",
+        payment_type: "wallet" as const,
         amount: 0,
       };
 
@@ -401,7 +410,7 @@ const AppointmentsScreen = () => {
                         className="mr-2"
                       />
                       <Text className="text-sm text-gray-800">
-                        ₹{booking.amount}
+                        Full: ₹{booking.amount}
                       </Text>
                     </View>
                     <View className="flex-row items-center mb-2 w-1/2">
@@ -422,14 +431,43 @@ const AppointmentsScreen = () => {
                       </Text>
                     </View>
                   </View>
+
+                  {/* Visiting Charge Display */}
+                  <View className="flex-row items-center gap-5">
+                    <View className="flex-row items-center mb-2 w-1/2">
+                      <Feather
+                        name="calendar"
+                        size={20}
+                        color="#0f766e"
+                        className="mr-2"
+                      />
+                      <Text className="text-sm text-gray-800">
+                        Visiting: ₹
+                        {booking.visiting_charge ||
+                          Math.round(booking.amount * 0.3)}
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center mb-2 w-1/2">
+                      <Feather
+                        name="clock"
+                        size={20}
+                        color="#0f766e"
+                        className="mr-2"
+                      />
+                      <Text className="text-sm text-gray-800">
+                        {new Date(booking.date_time).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
                 </CardContent>
                 {booking.status === "hard" && (
                   <CardFooter className="flex-row justify-between p-4 gap-3">
                     <Button
                       className="bg-green-600 rounded-lg px-4 py-2 flex-1"
-                      onPress={() =>
-                        handleAccept(booking.booking_id, booking.amount)
-                      }
+                      onPress={() => {
+                        setSelectedBooking(booking);
+                        setShowPaymentModal(true);
+                      }}
                     >
                       <Text className="text-white font-semibold text-center">
                         Accept
@@ -462,6 +500,24 @@ const AppointmentsScreen = () => {
           </View>
         ) : null}
       </ScrollView>
+
+      <PatientPaymentModal
+        isVisible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        booking={selectedBooking}
+        onAccept={async (paymentType, amount) => {
+          if (selectedBooking) {
+            await handleAccept(selectedBooking.booking_id, paymentType, amount);
+          }
+          setShowPaymentModal(false);
+        }}
+        onReject={() => {
+          if (selectedBooking) {
+            handleReject(selectedBooking.booking_id);
+          }
+          setShowPaymentModal(false);
+        }}
+      />
     </Animated.View>
   );
 };
