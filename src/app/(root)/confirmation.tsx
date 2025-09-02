@@ -160,7 +160,14 @@ const ConfirmationScreen = () => {
             <View className="flex-row items-center">
               <Feather name="hash" size={20} color="#0f766e" className="mr-2" />
               <Text className="text-base text-gray-800">
-                Booking ID: {bookingId}
+                Booking ID: #
+                {typeof bookingId === "string"
+                  ? bookingId.split("-")[0]?.toUpperCase()
+                  : Array.isArray(bookingId) &&
+                    bookingId.length > 0 &&
+                    typeof bookingId[0] === "string"
+                  ? bookingId[0].split("-")[0]?.toUpperCase()
+                  : ""}
               </Text>
             </View>
           </CardContent>

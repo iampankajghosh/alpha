@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -16,7 +16,7 @@ interface PatientPaymentModalProps {
   isVisible: boolean;
   onClose: () => void;
   booking: BookingData | null;
-  onAccept: (paymentType: "full" | "visiting", amount: number) => void;
+  onAccept: (amount: number) => void;
   onReject: () => void;
   loading?: boolean;
 }
@@ -29,46 +29,48 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
   onReject,
   loading = false,
 }) => {
+  const [amount, setAmount] = useState<string>("");
   const [paymentType, setPaymentType] = useState<"full" | "visiting" | null>(
     null
   );
-  const [amount, setAmount] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Calculate charges - if visiting_charge is not available, use a default ratio
+  // Calculate charges
   const fullCharge = booking?.amount || 0;
-  const visitingCharge =
-    booking?.visiting_charge || Math.round(booking?.amount * 0.3) || 0;
+  const visitingCharge = booking?.visiting_charge || 0;
 
-  const handleAccept = () => {
-    if (!paymentType) {
-      Alert.alert("Error", "Please select a payment type");
-      return;
+  // Set amount based on payment type or default to fullCharge
+  useEffect(() => {
+    if (booking) {
+      if (paymentType === "full") {
+        setAmount(fullCharge.toString());
+      } else if (paymentType === "visiting") {
+        setAmount(visitingCharge.toString());
+      } else {
+        setAmount(fullCharge.toString()); // Default to full charge
+      }
     }
+  }, [booking, fullCharge, visitingCharge, paymentType]);
 
+  const handleAccept = async () => {
     const amountNum = parseFloat(amount);
-    const expectedAmount = paymentType === "full" ? fullCharge : visitingCharge;
 
     if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert("Error", "Please enter a valid amount");
+      Alert.alert("Error", "Please select a payment option");
       return;
     }
 
-    if (amountNum !== expectedAmount) {
-      Alert.alert(
-        "Error",
-        `Amount must be ₹${expectedAmount} for ${
-          paymentType === "full" ? "full payment" : "visiting charge"
-        }`
-      );
-      return;
+    setIsSubmitting(true); // Show loader
+    try {
+      await onAccept(amountNum);
+    } finally {
+      setIsSubmitting(false); // Hide loader
     }
-
-    onAccept(paymentType, amountNum);
   };
 
   const handleClose = () => {
-    setPaymentType(null);
     setAmount("");
+    setPaymentType(null);
     onClose();
   };
 
@@ -110,7 +112,7 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
           {/* Charge Summary */}
           <View className="mb-4 bg-gray-50 p-3 rounded-lg">
             <Text className="text-sm font-medium text-gray-600 mb-2">
-              Available Payment Options
+              Payment Details
             </Text>
             <View className="space-y-2">
               <View className="flex-row justify-between">
@@ -142,7 +144,7 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
                   setPaymentType("full");
                   setAmount(fullCharge.toString());
                 }}
-                disabled={loading}
+                disabled={loading || isSubmitting}
               >
                 <Text
                   className={`text-center font-semibold ${
@@ -160,7 +162,7 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
                   setPaymentType("visiting");
                   setAmount(visitingCharge.toString());
                 }}
-                disabled={loading}
+                disabled={loading || isSubmitting}
               >
                 <Text
                   className={`text-center font-semibold ${
@@ -176,7 +178,7 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
           {/* Amount Input */}
           <View className="mb-6">
             <Text className="text-sm font-medium text-gray-600 mb-2">
-              Amount (₹) - Auto-set based on selection
+              Amount (₹)
             </Text>
             <TextInput
               value={amount}
@@ -185,10 +187,10 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
               keyboardType="numeric"
               className="border border-gray-300 rounded-lg p-3 text-gray-800 bg-gray-100"
               placeholderTextColor="#9ca3af"
-              editable={false}
+              editable={false} // Non-editable
             />
             <Text className="text-xs text-gray-500 mt-1">
-              Amount is automatically set and cannot be modified
+              Amount is set based on selected payment type
             </Text>
           </View>
 
@@ -197,7 +199,7 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
             <Button
               className="flex-1 bg-gray-300 rounded-lg py-3"
               onPress={handleReject}
-              disabled={loading}
+              disabled={loading || isSubmitting}
             >
               <Text className="text-gray-700 font-semibold text-center">
                 Reject
@@ -206,9 +208,9 @@ export const PatientPaymentModal: React.FC<PatientPaymentModalProps> = ({
             <Button
               className="flex-1 bg-teal-600 rounded-lg py-3"
               onPress={handleAccept}
-              disabled={loading}
+              disabled={loading || isSubmitting}
             >
-              {loading ? (
+              {loading || isSubmitting ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
                 <Text className="text-white font-semibold text-center">

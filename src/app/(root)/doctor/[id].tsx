@@ -7,6 +7,7 @@ import {
   Animated,
   Easing,
   RefreshControl,
+  ActivityIndicator, // Added for loader
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams, Link } from "expo-router";
@@ -24,10 +25,10 @@ import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
 
-// Generate dates starting from current date for 6 days
+// Generate dates starting from current date for 7 days
 const generateDates = (currentDateTime) => {
   const dates = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const date = new Date(currentDateTime);
     date.setDate(date.getDate() + i);
     const formattedDate = date.toLocaleDateString("en-US", {
@@ -43,31 +44,33 @@ const generateDates = (currentDateTime) => {
   return dates;
 };
 
-// Generate time slots from 12:00 PM to 5:00 PM in IST
+// Generate time slots from 8:00 AM to 8:00 PM in IST
 const generateTimeSlots = (selectedDate, currentDateTime) => {
   const timeSlots = [];
   const isToday = selectedDate === currentDateTime.toISOString().split("T")[0];
   const currentHour = currentDateTime.getHours();
   const currentMinute = currentDateTime.getMinutes();
 
-  for (let i = 0; i < 6; i++) {
-    const hour = 12 + i;
-    const period = hour >= 12 && hour < 24 ? "PM" : "AM";
-    const displayHour = hour > 12 ? hour - 12 : hour;
-    const formattedTime = `${displayHour
-      .toString()
-      .padStart(2, "0")}:00 ${period}`;
-    const isoHour = hour.toString().padStart(2, "0");
-    const isoTime = `${isoHour}:00:00+05:30`; // Explicitly IST (UTC+05:30)
-
-    if (isToday) {
-      // Only include time slots that are in the future for today
-      if (hour > currentHour || (hour === currentHour && currentMinute < 59)) {
+  for (let hour = 8; hour <= 20; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const period = hour >= 12 ? "PM" : "AM";
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      const formattedTime = `${displayHour.toString().padStart(2, "0")}:${minute
+        .toString()
+        .padStart(2, "0")} ${period}`;
+      const isoHour = hour.toString().padStart(2, "0");
+      const isoMinute = minute.toString().padStart(2, "0");
+      const isoTime = `${isoHour}:${isoMinute}:00+05:30`;
+      if (isToday) {
+        if (
+          hour > currentHour ||
+          (hour === currentHour && minute > currentMinute)
+        ) {
+          timeSlots.push({ formatted: formattedTime, iso: isoTime });
+        }
+      } else {
         timeSlots.push({ formatted: formattedTime, iso: isoTime });
       }
-    } else {
-      // Include all time slots for future dates
-      timeSlots.push({ formatted: formattedTime, iso: isoTime });
     }
   }
   return timeSlots;
@@ -80,7 +83,7 @@ const DoctorDetailScreen = () => {
     (state: { auth: any }) => state.auth
   );
   const [physiotherapist, setPhysiotherapist] = useState(null);
-  const currentDateTime = new Date(); // Dynamic current date and time
+  const currentDateTime = new Date();
   const [dates, setDates] = useState(generateDates(currentDateTime));
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedIsoDate, setSelectedIsoDate] = useState("");
@@ -91,7 +94,6 @@ const DoctorDetailScreen = () => {
   const [fetchLoading, setFetchLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Fade-in animation
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -101,27 +103,21 @@ const DoctorDetailScreen = () => {
     }).start();
   }, []);
 
-  // Update dates and select the first valid date with available time slots
   useEffect(() => {
     const newDates = generateDates(currentDateTime);
     setDates(newDates);
-    // Find the first date with available time slots
     for (const date of newDates) {
       const slots = generateTimeSlots(date.iso, currentDateTime);
       if (slots.length > 0) {
         setSelectedDate(date.formatted);
         setSelectedIsoDate(date.iso);
         break;
-      } else {
-        // If no slots for the first date, select the next day
-        setSelectedDate(newDates[1]?.formatted || "");
-        setSelectedIsoDate(newDates[1]?.iso || "");
       }
     }
   }, []);
 
-  // Update time slots when selected date changes
   useEffect(() => {
+    if (!selectedIsoDate) return;
     const newTimeSlots = generateTimeSlots(selectedIsoDate, currentDateTime);
     setTimeSlots(newTimeSlots);
     if (newTimeSlots.length > 0) {
@@ -130,10 +126,13 @@ const DoctorDetailScreen = () => {
     } else {
       setSelectedTime("");
       setSelectedIsoTime("");
+      ToastAndroid.show(
+        "No available time slots for this date. Please select another date.",
+        ToastAndroid.SHORT
+      );
     }
   }, [selectedIsoDate]);
 
-  // Load physiotherapist details function
   const loadPhysiotherapist = async () => {
     if (!id || typeof id !== "string" || id.trim() === "") {
       ToastAndroid.show(
@@ -146,7 +145,6 @@ const DoctorDetailScreen = () => {
 
     setFetchLoading(true);
     try {
-      console.log("Fetching physiotherapist with ID:", id);
       const response = await fetchPhysiotherapistById(id);
       if (!response?.success) {
         const errorMessage =
@@ -174,7 +172,7 @@ const DoctorDetailScreen = () => {
         details: physio.qualification || "Not specified",
         rating: 4.5,
         fee: physio.visiting_fee || 0,
-        physiotherapist_user_id: physio.id,
+        physiotherapist_user_id: physio.physiotherapist_user_id || physio.id,
         isTopRated: physio.experience >= 10,
       });
     } catch (error) {
@@ -191,12 +189,10 @@ const DoctorDetailScreen = () => {
     }
   };
 
-  // Pull to refresh hook
   const { refreshing, onRefresh } = usePullToRefresh({
     onRefresh: loadPhysiotherapist,
   });
 
-  // Fetch physiotherapist details on mount
   useEffect(() => {
     loadPhysiotherapist();
   }, [id]);
@@ -219,7 +215,14 @@ const DoctorDetailScreen = () => {
       return;
     }
 
-    // Validate that the selected date and time are not in the past
+    if (!selectedIsoDate || !selectedIsoTime) {
+      ToastAndroid.show(
+        "Please select a valid date and time.",
+        ToastAndroid.SHORT
+      );
+      return;
+    }
+
     const selectedDateTime = new Date(`${selectedIsoDate}T${selectedIsoTime}`);
     if (selectedDateTime <= new Date()) {
       ToastAndroid.show(
@@ -231,11 +234,9 @@ const DoctorDetailScreen = () => {
 
     setLoading(true);
     try {
-      // Construct ISO 8601 date-time string in IST
-      const dateTime = `${selectedIsoDate}T${selectedIsoTime}`;
       const payload = {
         physiotherapist_user_id: physiotherapist.physiotherapist_user_id,
-        date_time: dateTime, // e.g., "2025-09-01T12:00:00+05:30"
+        date_time: `${selectedIsoDate}T${selectedIsoTime}`,
       };
 
       const response = await bookAppointment(payload);
@@ -577,22 +578,35 @@ const DoctorDetailScreen = () => {
           </CardContent>
         </Card>
 
-        {/* Booking Button */}
+        {/* Booking Button with Loader */}
         <Button
           className={`bg-teal-600 rounded-lg px-4 py-3 flex-row items-center justify-center ${
-            loading || timeSlots.length === 0 ? "opacity-70" : ""
+            loading || timeSlots.length === 0 || !selectedIsoTime
+              ? "opacity-70"
+              : ""
           }`}
           onPress={handleBooking}
-          disabled={loading || timeSlots.length === 0}
+          disabled={loading || timeSlots.length === 0 || !selectedIsoTime}
         >
-          <Feather name="calendar" size={20} color="white" className="mr-2" />
-          <Text className="text-white font-semibold text-base">
-            {loading ? "Booking..." : "Book Appointment"}
-          </Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <>
+              <Feather
+                name="calendar"
+                size={20}
+                color="white"
+                className="mr-2"
+              />
+              <Text className="text-white font-semibold text-base">
+                Book Appointment
+              </Text>
+            </>
+          )}
         </Button>
       </ScrollView>
     </Animated.View>
   );
 };
 
-export default DoctorDetailScreen;
+export default React.memo(DoctorDetailScreen);

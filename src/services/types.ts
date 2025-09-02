@@ -65,8 +65,8 @@ export type TransactionListResponse = {
 export interface BookingDecisionData {
   booking_id: string;
   decision: "accept" | "reject";
-  payment_type: "full" | "visiting" | "wallet";
-  amount: number;
+  payment_type?: string;
+  amount?: number;
 }
 
 export interface BookingDecisionResponse {

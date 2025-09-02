@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter, Link, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSelector } from "react-redux";
 import { Feather } from "@expo/vector-icons";
 import { Text, Button } from "~/components/ui";
@@ -23,23 +23,18 @@ import {
 import { PatientPaymentModal } from "~/components/ui/PatientPaymentModal";
 import { fetchBookingList, makeBookingDecision } from "~/services/user.service";
 import { BookingData } from "~/services/types";
+import { ActivityIndicator } from "react-native";
 
 // Helper function to format date and time
 const formatDateTime = (dateTimeString: string) => {
   const date = new Date(dateTimeString);
-  const now = new Date();
 
-  // Check if it's today
-  const isToday = date.toDateString() === now.toDateString();
-
-  // Format date
-  const dateStr = isToday
-    ? "Today"
-    : date.toLocaleDateString("en-IN", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      });
+  // Format date to "Jan 20, 2025"
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   // Format time
   const timeStr = date.toLocaleTimeString("en-IN", {
@@ -85,6 +80,9 @@ const AppointmentsScreen = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(
     null
   );
+  const [submittingBookings, setSubmittingBookings] = useState<{
+    [key: string]: { accept: boolean; reject: boolean };
+  }>({});
 
   // Categorize bookings into upcoming and past
   const categorizedBookings = categorizeBookings(bookings);
@@ -140,11 +138,6 @@ const AppointmentsScreen = () => {
     }
   };
 
-  // Load data on mount
-  useEffect(() => {
-    loadBookings();
-  }, [isAuthenticated]);
-
   // Refresh data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
@@ -164,16 +157,16 @@ const AppointmentsScreen = () => {
     ToastAndroid.show("Video call feature coming soon!", ToastAndroid.SHORT);
   };
 
-  const handleAccept = async (
-    bookingId: string,
-    paymentType: "full" | "visiting",
-    amount: number
-  ) => {
+  const handleAccept = async (bookingId: string, amount: number) => {
+    setSubmittingBookings((prev) => ({
+      ...prev,
+      [bookingId]: { ...prev[bookingId], accept: true },
+    }));
     try {
       const payload = {
         booking_id: bookingId,
         decision: "accept" as "accept",
-        payment_type: paymentType,
+        payment_type: "wallet",
         amount: amount,
       };
 
@@ -194,16 +187,25 @@ const AppointmentsScreen = () => {
         "Failed to accept booking. Please try again.",
         ToastAndroid.SHORT
       );
+    } finally {
+      setSubmittingBookings((prev) => ({
+        ...prev,
+        [bookingId]: { ...prev[bookingId], accept: false },
+      }));
     }
   };
 
-  const handleReject = async (bookingId: string) => {
+  const handleReject = async (bookingId: string, amount: number) => {
+    setSubmittingBookings((prev) => ({
+      ...prev,
+      [bookingId]: { ...prev[bookingId], reject: true },
+    }));
     try {
       const payload = {
         booking_id: bookingId,
         decision: "reject" as "reject",
-        payment_type: "wallet" as const,
-        amount: 0,
+        payment_type: "wallet",
+        amount: amount,
       };
 
       const response = await makeBookingDecision(payload);
@@ -223,6 +225,11 @@ const AppointmentsScreen = () => {
         "Failed to reject booking. Please try again.",
         ToastAndroid.SHORT
       );
+    } finally {
+      setSubmittingBookings((prev) => ({
+        ...prev,
+        [bookingId]: { ...prev[bookingId], reject: false },
+      }));
     }
   };
 
@@ -329,6 +336,10 @@ const AppointmentsScreen = () => {
           appointments.map((booking) => {
             const { date, time } = formatDateTime(booking.date_time);
             const isUpcoming = activeTab === "upcoming";
+            const isAcceptSubmitting =
+              submittingBookings[booking.booking_id]?.accept || false;
+            const isRejectSubmitting =
+              submittingBookings[booking.booking_id]?.reject || false;
 
             return (
               <Card
@@ -410,7 +421,7 @@ const AppointmentsScreen = () => {
                         className="mr-2"
                       />
                       <Text className="text-sm text-gray-800">
-                        Full: ₹{booking.amount}
+                        Visiting: ₹{booking.amount}
                       </Text>
                     </View>
                     <View className="flex-row items-center mb-2 w-1/2">
@@ -431,34 +442,6 @@ const AppointmentsScreen = () => {
                       </Text>
                     </View>
                   </View>
-
-                  {/* Visiting Charge Display */}
-                  <View className="flex-row items-center gap-5">
-                    <View className="flex-row items-center mb-2 w-1/2">
-                      <Feather
-                        name="calendar"
-                        size={20}
-                        color="#0f766e"
-                        className="mr-2"
-                      />
-                      <Text className="text-sm text-gray-800">
-                        Visiting: ₹
-                        {booking.visiting_charge ||
-                          Math.round(booking.amount * 0.3)}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center mb-2 w-1/2">
-                      <Feather
-                        name="clock"
-                        size={20}
-                        color="#0f766e"
-                        className="mr-2"
-                      />
-                      <Text className="text-sm text-gray-800">
-                        {new Date(booking.date_time).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </View>
                 </CardContent>
                 {booking.status === "hard" && (
                   <CardFooter className="flex-row justify-between p-4 gap-3">
@@ -468,18 +451,30 @@ const AppointmentsScreen = () => {
                         setSelectedBooking(booking);
                         setShowPaymentModal(true);
                       }}
+                      disabled={isAcceptSubmitting || isRejectSubmitting}
                     >
-                      <Text className="text-white font-semibold text-center">
-                        Accept
-                      </Text>
+                      {isAcceptSubmitting ? (
+                        <ActivityIndicator color="white" size="small" />
+                      ) : (
+                        <Text className="text-white font-semibold text-center">
+                          Accept
+                        </Text>
+                      )}
                     </Button>
                     <Button
                       className="bg-red-600 rounded-lg px-4 py-2 flex-1"
-                      onPress={() => handleReject(booking.booking_id)}
+                      onPress={() =>
+                        handleReject(booking.booking_id, booking.amount)
+                      }
+                      disabled={isAcceptSubmitting || isRejectSubmitting}
                     >
-                      <Text className="text-white font-semibold text-center">
-                        Reject
-                      </Text>
+                      {isRejectSubmitting ? (
+                        <ActivityIndicator color="white" size="small" />
+                      ) : (
+                        <Text className="text-white font-semibold text-center">
+                          Reject
+                        </Text>
+                      )}
                     </Button>
                   </CardFooter>
                 )}
@@ -505,15 +500,15 @@ const AppointmentsScreen = () => {
         isVisible={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         booking={selectedBooking}
-        onAccept={async (paymentType, amount) => {
+        onAccept={async (amount) => {
           if (selectedBooking) {
-            await handleAccept(selectedBooking.booking_id, paymentType, amount);
+            await handleAccept(selectedBooking.booking_id, amount);
           }
           setShowPaymentModal(false);
         }}
         onReject={() => {
           if (selectedBooking) {
-            handleReject(selectedBooking.booking_id);
+            handleReject(selectedBooking.booking_id, selectedBooking.amount);
           }
           setShowPaymentModal(false);
         }}
