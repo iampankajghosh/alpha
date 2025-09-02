@@ -1,4 +1,11 @@
-import { View, ScrollView, Pressable, Animated, Easing } from "react-native";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  Animated,
+  Easing,
+  RefreshControl,
+} from "react-native";
 import React, { useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSelector } from "react-redux";
@@ -6,6 +13,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Button, Text } from "~/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 
 const ConfirmationScreen = () => {
   const router = useRouter();
@@ -15,6 +23,18 @@ const ConfirmationScreen = () => {
     (state: { auth: any }) => state.auth
   );
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Refresh data function
+  const refreshData = async () => {
+    // For confirmation screen, we don't need to fetch additional data
+    // The confirmation data is passed via route params
+    // This is just for consistency with other screens
+  };
+
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: refreshData,
+  });
 
   // Fade-in animation consistent with DoctorDetailScreen
   useEffect(() => {
@@ -35,6 +55,9 @@ const ConfirmationScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-6">

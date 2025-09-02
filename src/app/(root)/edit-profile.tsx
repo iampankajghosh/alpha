@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   ToastAndroid,
+  RefreshControl,
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -17,6 +18,7 @@ import { Input, Button, Text } from "~/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
 import { updatePatient } from "~/store/slices/auth.slice";
 import { updatePatientName } from "~/services/user.service";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
@@ -74,6 +76,27 @@ const EditProfileScreen = () => {
     }).start();
   }, []);
 
+  // Refresh form data function
+  const refreshFormData = async () => {
+    if (patient) {
+      console.log("Refreshing form data with patient data:", {
+        name: patient?.name || "",
+        email: patient?.email || "",
+        phone: patient?.phone || "",
+      });
+      reset({
+        name: patient?.name || "",
+        email: patient?.email || "",
+        phone: patient?.phone || "",
+      });
+    }
+  };
+
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: refreshFormData,
+  });
+
   // Refresh form data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
@@ -118,6 +141,9 @@ const EditProfileScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-6">

@@ -5,6 +5,7 @@ import {
   ToastAndroid,
   Animated,
   Easing,
+  RefreshControl,
 } from "react-native";
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -15,6 +16,7 @@ import { Input, Button, Text } from "~/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
 import { topUpWallet } from "~/services/user.service";
 import { updatePatient } from "~/store/slices/auth.slice";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 
 const TopUpScreen = () => {
   const router = useRouter();
@@ -44,6 +46,18 @@ const TopUpScreen = () => {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  // Refresh data function
+  const refreshData = async () => {
+    // For top-up screen, we don't need to fetch additional data
+    // The wallet balance is already in Redux store
+    // This is just for consistency with other screens
+  };
+
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: refreshData,
+  });
 
   // Refresh data when screen comes into focus
   useFocusEffect(
@@ -147,6 +161,9 @@ const TopUpScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-6">

@@ -6,6 +6,7 @@ import {
   Pressable,
   Animated,
   Easing,
+  RefreshControl,
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, Link, useFocusEffect } from "expo-router";
@@ -23,6 +24,7 @@ import { TransactionData } from "~/services/types";
 import Storage from "~/utils/Storage";
 import { login, logout } from "~/store/slices/auth.slice";
 import { handleLogout } from "~/utils/auth";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
 
@@ -150,6 +152,11 @@ const ProfileScreen = () => {
     }
   };
 
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: loadData,
+  });
+
   // Fetch transactions on mount
   useEffect(() => {
     loadData();
@@ -216,6 +223,9 @@ const ProfileScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-6">
@@ -443,7 +453,7 @@ const ProfileScreen = () => {
             </Button>
             <Button
               className="bg-gray-200 rounded-lg px-4 py-3 flex-row items-center justify-center"
-                              onPress={handleLogoutPress}
+              onPress={handleLogoutPress}
               disabled={loading}
             >
               <Feather

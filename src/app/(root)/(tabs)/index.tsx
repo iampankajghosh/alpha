@@ -6,6 +6,7 @@ import {
   ToastAndroid,
   Animated,
   Easing,
+  RefreshControl,
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, Link } from "expo-router";
@@ -23,6 +24,7 @@ import {
 import { fetchPhysiotherapists } from "~/services/physiotherapist.service";
 import { useSelector } from "react-redux";
 import { PatientData } from "~/store/slices/types";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
@@ -81,40 +83,47 @@ const HomeScreen = () => {
     }).start();
   }, []);
 
-  // Fetch physiotherapists
-  useEffect(() => {
-    const loadPhysiotherapists = async () => {
-      setLoading(true);
-      try {
-        const response = await fetchPhysiotherapists();
-        if (!response?.success) {
-          ToastAndroid.show(
-            response?.message ??
-              "Oops! We couldn't fetch physiotherapists right now. Please try again later.",
-            ToastAndroid.LONG
-          );
-          return;
-        }
-        const validPhysios = response.data
-          .filter((physio) => !physio.is_banned)
-          .map((physio) => ({
-            ...physio,
-            name: physio.name || `Physiotherapist ${physio.id.slice(0, 4)}`,
-            specialization: physio.specialization || "General Physiotherapy",
-            qualification: physio.qualification || "Not specified",
-          }));
-        setPhysiotherapists(validPhysios.slice(0, 3));
-      } catch (error) {
-        console.error("Error:: loadPhysiotherapists: ", error);
+  // Load physiotherapists function
+  const loadPhysiotherapists = async () => {
+    setLoading(true);
+    try {
+      const response = await fetchPhysiotherapists();
+      if (!response?.success) {
         ToastAndroid.show(
-          error?.response?.data?.message ??
-            "Something went wrong while fetching physiotherapists. Please try again.",
+          response?.message ??
+            "Oops! We couldn't fetch physiotherapists right now. Please try again later.",
           ToastAndroid.LONG
         );
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
+      const validPhysios = response.data
+        .filter((physio) => !physio.is_banned)
+        .map((physio) => ({
+          ...physio,
+          name: physio.name || `Physiotherapist ${physio.id.slice(0, 4)}`,
+          specialization: physio.specialization || "General Physiotherapy",
+          qualification: physio.qualification || "Not specified",
+        }));
+      setPhysiotherapists(validPhysios.slice(0, 3));
+    } catch (error) {
+      console.error("Error:: loadPhysiotherapists: ", error);
+      ToastAndroid.show(
+        error?.response?.data?.message ??
+          "Something went wrong while fetching physiotherapists. Please try again.",
+        ToastAndroid.LONG
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: loadPhysiotherapists,
+  });
+
+  // Fetch physiotherapists on mount
+  useEffect(() => {
     loadPhysiotherapists();
   }, []);
 
@@ -127,6 +136,9 @@ const HomeScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* User Greeting Section */}
         <View className="flex-row items-center justify-between mb-6">

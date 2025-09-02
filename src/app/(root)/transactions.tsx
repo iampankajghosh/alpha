@@ -1,4 +1,12 @@
-import { View, ScrollView, Pressable, ToastAndroid, Animated, Easing } from "react-native";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  ToastAndroid,
+  Animated,
+  Easing,
+  RefreshControl,
+} from "react-native";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSelector } from "react-redux";
@@ -8,31 +16,32 @@ import { Button, Text } from "~/components/ui";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
 import { fetchTransactionList } from "~/services/user.service";
 import { TransactionData } from "~/services/types";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 
 // Helper function to format date and time
 const formatDateTime = (timestamp: string) => {
   const date = new Date(timestamp);
   const now = new Date();
-  
+
   // Check if it's today
   const isToday = date.toDateString() === now.toDateString();
-  
+
   // Format date
-  const dateStr = isToday 
-    ? "Today" 
-    : date.toLocaleDateString("en-IN", { 
-        day: "2-digit", 
-        month: "2-digit", 
-        year: "numeric" 
+  const dateStr = isToday
+    ? "Today"
+    : date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       });
-  
+
   // Format time
-  const timeStr = date.toLocaleTimeString("en-IN", { 
-    hour: "2-digit", 
+  const timeStr = date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true 
+    hour12: true,
   });
-  
+
   return { date: dateStr, time: timeStr };
 };
 
@@ -43,25 +52,25 @@ const getTransactionInfo = (type: string, paymentStatus: string) => {
       return {
         icon: "plus-circle",
         color: "#22c55e",
-        label: "Wallet Top-up"
+        label: "Wallet Top-up",
       };
     case "booking_payment":
       return {
         icon: "calendar",
         color: "#3b82f6",
-        label: "Booking Payment"
+        label: "Booking Payment",
       };
     case "refund":
       return {
         icon: "rotate-ccw",
         color: "#f59e0b",
-        label: "Refund"
+        label: "Refund",
       };
     default:
       return {
         icon: "dollar-sign",
         color: "#6b7280",
-        label: "Transaction"
+        label: "Transaction",
       };
   }
 };
@@ -87,17 +96,20 @@ const TransactionsScreen = () => {
   // Load transactions data
   const loadTransactions = async () => {
     if (!isAuthenticated) {
-      ToastAndroid.show("Please sign in to view transactions.", ToastAndroid.LONG);
+      ToastAndroid.show(
+        "Please sign in to view transactions.",
+        ToastAndroid.LONG
+      );
       router.push("/signin");
       return;
     }
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetchTransactionList();
-      
+
       if (!response?.success) {
         setError(response?.message || "Failed to load transactions");
         ToastAndroid.show(
@@ -106,7 +118,7 @@ const TransactionsScreen = () => {
         );
         return;
       }
-      
+
       setTransactions(response.data || []);
     } catch (error) {
       console.error("Error loading transactions:", error);
@@ -119,6 +131,11 @@ const TransactionsScreen = () => {
       setLoading(false);
     }
   };
+
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: loadTransactions,
+  });
 
   // Load data on mount
   useEffect(() => {
@@ -153,6 +170,9 @@ const TransactionsScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-6">
@@ -162,15 +182,15 @@ const TransactionsScreen = () => {
           <Text className="text-xl font-semibold text-gray-800">
             Transaction History
           </Text>
-          <Pressable 
-            onPress={loadTransactions} 
+          <Pressable
+            onPress={loadTransactions}
             className="p-2"
             disabled={loading}
           >
-            <Feather 
-              name="refresh-cw" 
-              size={24} 
-              color={loading ? "#9ca3af" : "#374151"} 
+            <Feather
+              name="refresh-cw"
+              size={24}
+              color={loading ? "#9ca3af" : "#374151"}
             />
           </Pressable>
         </View>
@@ -194,12 +214,16 @@ const TransactionsScreen = () => {
                 Total Transactions
               </Text>
               <Text className="text-sm text-white/90">
-                {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                {transactions.length} transaction
+                {transactions.length !== 1 ? "s" : ""}
               </Text>
             </View>
             <View className="items-end">
               <Text className="text-2xl font-bold text-white">
-                ₹{transactions.reduce((sum, tx) => sum + tx.amount, 0).toLocaleString()}
+                ₹
+                {transactions
+                  .reduce((sum, tx) => sum + tx.amount, 0)
+                  .toLocaleString()}
               </Text>
               <Text className="text-sm text-white/90">Total Amount</Text>
             </View>
@@ -209,7 +233,9 @@ const TransactionsScreen = () => {
         {/* Loading State */}
         {loading && (
           <View className="flex-1 items-center justify-center py-10">
-            <Text className="text-center text-gray-500">Loading transactions...</Text>
+            <Text className="text-center text-gray-500">
+              Loading transactions...
+            </Text>
           </View>
         )}
 
@@ -239,16 +265,24 @@ const TransactionsScreen = () => {
           <View>
             {transactions.map((transaction) => {
               const { date, time } = formatDateTime(transaction.timestamp);
-              const transactionInfo = getTransactionInfo(transaction.type_of_transaction, transaction.payment_status);
-              
+              const transactionInfo = getTransactionInfo(
+                transaction.type_of_transaction,
+                transaction.payment_status
+              );
+
               return (
-                <Card key={transaction.transaction_id} className="bg-white rounded-xl mb-4 shadow-sm">
+                <Card
+                  key={transaction.transaction_id}
+                  className="bg-white rounded-xl mb-4 shadow-sm"
+                >
                   <CardContent className="p-4">
                     <View className="flex-row items-center justify-between mb-3">
                       <View className="flex-row items-center">
-                        <View 
+                        <View
                           className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                          style={{ backgroundColor: `${transactionInfo.color}20` }}
+                          style={{
+                            backgroundColor: `${transactionInfo.color}20`,
+                          }}
                         >
                           <Feather
                             name={transactionInfo.icon as any}
@@ -292,7 +326,7 @@ const TransactionsScreen = () => {
                         </View>
                       </View>
                     </View>
-                    
+
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center">
                         <Feather

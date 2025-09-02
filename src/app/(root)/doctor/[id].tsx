@@ -6,6 +6,7 @@ import {
   ToastAndroid,
   Animated,
   Easing,
+  RefreshControl,
 } from "react-native";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams, Link } from "expo-router";
@@ -18,6 +19,7 @@ import {
   bookAppointment,
   fetchPhysiotherapistById,
 } from "~/services/physiotherapist.service";
+import { usePullToRefresh } from "~/hooks/usePullToRefresh";
 
 // Default profile image
 const defaultProfileImage = require("~/assets/images/default-profile.png");
@@ -131,64 +133,71 @@ const DoctorDetailScreen = () => {
     }
   }, [selectedIsoDate]);
 
-  // Fetch physiotherapist details
-  useEffect(() => {
-    const loadPhysiotherapist = async () => {
-      if (!id || typeof id !== "string" || id.trim() === "") {
-        ToastAndroid.show(
-          "Invalid physiotherapist ID. Please try again.",
-          ToastAndroid.LONG
-        );
+  // Load physiotherapist details function
+  const loadPhysiotherapist = async () => {
+    if (!id || typeof id !== "string" || id.trim() === "") {
+      ToastAndroid.show(
+        "Invalid physiotherapist ID. Please try again.",
+        ToastAndroid.LONG
+      );
+      router.replace("/all-doctors");
+      return;
+    }
+
+    setFetchLoading(true);
+    try {
+      console.log("Fetching physiotherapist with ID:", id);
+      const response = await fetchPhysiotherapistById(id);
+      if (!response?.success) {
+        const errorMessage =
+          response?.message === "physiotherapist not found"
+            ? "Physiotherapist not found. Please select another expert."
+            : response?.message ??
+              "Oops! We couldn't fetch physiotherapist details right now. Please try again later.";
+        ToastAndroid.show(errorMessage, ToastAndroid.LONG);
         router.replace("/all-doctors");
         return;
       }
-
-      setFetchLoading(true);
-      try {
-        console.log("Fetching physiotherapist with ID:", id);
-        const response = await fetchPhysiotherapistById(id);
-        if (!response?.success) {
-          const errorMessage =
-            response?.message === "physiotherapist not found"
-              ? "Physiotherapist not found. Please select another expert."
-              : response?.message ??
-                "Oops! We couldn't fetch physiotherapist details right now. Please try again later.";
-          ToastAndroid.show(errorMessage, ToastAndroid.LONG);
-          router.replace("/all-doctors");
-          return;
-        }
-        const physio = response.data;
-        if (physio.is_banned) {
-          ToastAndroid.show(
-            "This physiotherapist is not available.",
-            ToastAndroid.LONG
-          );
-          router.back();
-          return;
-        }
-        setPhysiotherapist({
-          id: physio.id,
-          name: physio.name || "Physiotherapist",
-          specialty: physio.specialization || "General Physiotherapy",
-          details: physio.qualification || "Not specified",
-          rating: 4.5,
-          fee: physio.visiting_fee || 0,
-          physiotherapist_user_id: physio.id,
-          isTopRated: physio.experience >= 10,
-        });
-      } catch (error) {
-        console.error("Error:: loadPhysiotherapist: ", error);
-        const errorMessage =
-          error?.response?.data?.message === "physiotherapist not found"
-            ? "Physiotherapist not found. Please select another expert."
-            : error?.response?.data?.message ??
-              "Something went wrong while fetching physiotherapist details. Please try again.";
-        ToastAndroid.show(errorMessage, ToastAndroid.LONG);
-        router.replace("/all-doctors");
-      } finally {
-        setFetchLoading(false);
+      const physio = response.data;
+      if (physio.is_banned) {
+        ToastAndroid.show(
+          "This physiotherapist is not available.",
+          ToastAndroid.LONG
+        );
+        router.back();
+        return;
       }
-    };
+      setPhysiotherapist({
+        id: physio.id,
+        name: physio.name || "Physiotherapist",
+        specialty: physio.specialization || "General Physiotherapy",
+        details: physio.qualification || "Not specified",
+        rating: 4.5,
+        fee: physio.visiting_fee || 0,
+        physiotherapist_user_id: physio.id,
+        isTopRated: physio.experience >= 10,
+      });
+    } catch (error) {
+      console.error("Error:: loadPhysiotherapist: ", error);
+      const errorMessage =
+        error?.response?.data?.message === "physiotherapist not found"
+          ? "Physiotherapist not found. Please select another expert."
+          : error?.response?.data?.message ??
+            "Something went wrong while fetching physiotherapist details. Please try again.";
+      ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+      router.replace("/all-doctors");
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  // Pull to refresh hook
+  const { refreshing, onRefresh } = usePullToRefresh({
+    onRefresh: loadPhysiotherapist,
+  });
+
+  // Fetch physiotherapist details on mount
+  useEffect(() => {
     loadPhysiotherapist();
   }, [id]);
 
@@ -337,6 +346,9 @@ const DoctorDetailScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* Header Section */}
         <View className="flex-row items-center justify-between mb-6">
